@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:orm.drizzle.team)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm db:push)",
+      "Bash(pnpm rebuild:*)",
+      "Bash(pnpm db:seed)",
+      "Bash(pnpm typecheck:*)"
+    ]
+  }
+}

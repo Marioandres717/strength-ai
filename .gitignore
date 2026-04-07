@@ -12,3 +12,8 @@ dist-ssr
 __unconfig*
 todos.json
 coverage
+
+# SQLite database
+strength.db
+strength.db-shm
+strength.db-wal

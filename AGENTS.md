@@ -75,6 +75,12 @@ pnpm preview          # Preview production build
 pnpm test             # Run tests in watch mode
 pnpm test:ui          # Run tests with UI
 pnpm test:coverage    # Run tests with coverage report
+
+# Database
+pnpm db:push          # Apply schema changes to strength.db (dev workflow)
+pnpm db:generate      # Generate SQL migration files (for production/Fly.io)
+pnpm db:studio        # Open Drizzle Studio to inspect the database
+pnpm db:seed          # Seed the exercise library (idempotent, safe to re-run)
 ```
 
 ### Testing
@@ -159,15 +165,16 @@ src/
   router.tsx               — router configuration
   routeTree.gen.ts         — auto-generated route tree
   styles.css               — Tailwind v4 CSS (uses @import syntax)
-lib/                       — business logic (empty, Phase 2+)
-  db.ts                    — Drizzle + better-sqlite3 setup
-  schema.ts                — Drizzle schema definitions
+lib/                       — business logic
+  db.ts                    — Drizzle + better-sqlite3 setup ✅
+  schema.ts                — Drizzle schema definitions ✅
+  seed.ts                  — exercise library seed (run via pnpm db:seed) ✅
   ai.ts                    — Anthropic client abstraction
   rules.ts                 — rule-based progression logic (no AI)
   rules.test.ts            — Vitest unit tests for progression rules
   prompts.ts               — system prompts, one constant per AI call type
-data/                      — static data (empty, Phase 2+)
-  exercises.ts             — seeded exercise library (~35 entries, no UI to manage)
+data/                      — static data
+  exercises.ts             — seeded exercise library (31 entries, no UI to manage) ✅
 ```
 
 **Phase 1 Status**: ✅ Complete
@@ -178,6 +185,16 @@ data/                      — static data (empty, Phase 2+)
 - Vitest configured with happy-dom
 - Core dependencies installed (Drizzle, better-sqlite3, Anthropic SDK, Zustand)
 - Directory structure created
+
+**Phase 2 Status**: ✅ Complete
+
+- `lib/schema.ts` — 7 tables with text PKs, cascade FKs, JSON columns
+- `lib/db.ts` — better-sqlite3 + Drizzle with WAL mode and foreign key enforcement
+- `lib/seed.ts` — idempotent exercise seeder (run `pnpm db:seed`)
+- `data/exercises.ts` — 31 exercises across squat, hinge, push, pull, isolation
+- `drizzle.config.ts` — drizzle-kit config (`pnpm db:push`, `pnpm db:studio`)
+- `strength.db` — SQLite database created and seeded (gitignored)
+- Note: `better-sqlite3` requires `pnpm rebuild better-sqlite3` on first setup (native binding)
 
 ---
 
