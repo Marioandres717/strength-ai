@@ -1,0 +1,22 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-ssr
+.vinxi
+.tanstack
+.nitro
+.output
+
+# Generated files
+**/routeTree.gen.ts
+*.gen.ts
+
+# Coverage
+coverage
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock

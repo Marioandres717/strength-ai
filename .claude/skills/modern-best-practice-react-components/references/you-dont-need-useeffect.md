@@ -29,14 +29,14 @@ Suppose you have a component with two state variables: `firstName` and `lastName
 
 ```jsx
 function Form() {
-  const [firstName, setFirstName] = useState('Taylor');
-  const [lastName, setLastName] = useState('Swift');
+  const [firstName, setFirstName] = useState("Taylor")
+  const [lastName, setLastName] = useState("Swift")
 
   // 🔴 Avoid: redundant state and unnecessary Effect
-  const [fullName, setFullName] = useState('');
+  const [fullName, setFullName] = useState("")
   useEffect(() => {
-    setFullName(firstName + ' ' + lastName);
-  }, [firstName, lastName]);
+    setFullName(firstName + " " + lastName)
+  }, [firstName, lastName])
   // ...
 }
 ```
@@ -45,10 +45,10 @@ This is more complicated than necessary. It is inefficient too: it does an entir
 
 ```jsx
 function Form() {
-  const [firstName, setFirstName] = useState('Taylor');
-  const [lastName, setLastName] = useState('Swift');
+  const [firstName, setFirstName] = useState("Taylor")
+  const [lastName, setLastName] = useState("Swift")
   // ✅ Good: calculated during rendering
-  const fullName = firstName + ' ' + lastName;
+  const fullName = firstName + " " + lastName
   // ...
 }
 ```
@@ -61,13 +61,13 @@ This component computes `visibleTodos` by taking the `todos` it receives by prop
 
 ```jsx
 function TodoList({ todos, filter }) {
-  const [newTodo, setNewTodo] = useState('');
+  const [newTodo, setNewTodo] = useState("")
 
   // 🔴 Avoid: redundant state and unnecessary Effect
-  const [visibleTodos, setVisibleTodos] = useState([]);
+  const [visibleTodos, setVisibleTodos] = useState([])
   useEffect(() => {
-    setVisibleTodos(getFilteredTodos(todos, filter));
-  }, [todos, filter]);
+    setVisibleTodos(getFilteredTodos(todos, filter))
+  }, [todos, filter])
 
   // ...
 }
@@ -77,9 +77,9 @@ Like in the earlier example, this is both unnecessary and inefficient. First, re
 
 ```jsx
 function TodoList({ todos, filter }) {
-  const [newTodo, setNewTodo] = useState('');
+  const [newTodo, setNewTodo] = useState("")
   // ✅ This is fine if getFilteredTodos() is not slow.
-  const visibleTodos = getFilteredTodos(todos, filter);
+  const visibleTodos = getFilteredTodos(todos, filter)
   // ...
 }
 ```
@@ -91,14 +91,14 @@ You can cache (or "memoize") an expensive calculation by wrapping it in a `useMe
 > **Note:** React Compiler can automatically memoize expensive calculations for you, eliminating the need for manual `useMemo` in many cases.
 
 ```jsx
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react"
 
 function TodoList({ todos, filter }) {
-  const [newTodo, setNewTodo] = useState('');
+  const [newTodo, setNewTodo] = useState("")
   const visibleTodos = useMemo(() => {
     // ✅ Does not re-run unless todos or filter change
-    return getFilteredTodos(todos, filter);
-  }, [todos, filter]);
+    return getFilteredTodos(todos, filter)
+  }, [todos, filter])
   // ...
 }
 ```
@@ -106,12 +106,15 @@ function TodoList({ todos, filter }) {
 Or, written as a single line:
 
 ```jsx
-import { useMemo, useState } from 'react';
+import { useMemo, useState } from "react"
 
 function TodoList({ todos, filter }) {
-  const [newTodo, setNewTodo] = useState('');
+  const [newTodo, setNewTodo] = useState("")
   // ✅ Does not re-run getFilteredTodos() unless todos or filter change
-  const visibleTodos = useMemo(() => getFilteredTodos(todos, filter), [todos, filter]);
+  const visibleTodos = useMemo(
+    () => getFilteredTodos(todos, filter),
+    [todos, filter]
+  )
   // ...
 }
 ```
@@ -126,12 +129,12 @@ This `ProfilePage` component receives a `userId` prop. The page contains a comme
 
 ```jsx
 export default function ProfilePage({ userId }) {
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("")
 
   // 🔴 Avoid: Resetting state on prop change in an Effect
   useEffect(() => {
-    setComment('');
-  }, [userId]);
+    setComment("")
+  }, [userId])
   // ...
 }
 ```
@@ -142,12 +145,12 @@ Instead, you can tell React that each user's profile is conceptually a different
 
 ```jsx
 export default function ProfilePage({ userId }) {
-  return <Profile userId={userId} key={userId} />;
+  return <Profile userId={userId} key={userId} />
 }
 
 function Profile({ userId }) {
   // ✅ This and any other state below will reset on key change automatically
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState("")
   // ...
 }
 ```
@@ -164,13 +167,13 @@ This `List` component receives a list of `items` as a prop, and maintains the se
 
 ```jsx
 function List({ items }) {
-  const [isReverse, setIsReverse] = useState(false);
-  const [selection, setSelection] = useState(null);
+  const [isReverse, setIsReverse] = useState(false)
+  const [selection, setSelection] = useState(null)
 
   // 🔴 Avoid: Adjusting state on prop change in an Effect
   useEffect(() => {
-    setSelection(null);
-  }, [items]);
+    setSelection(null)
+  }, [items])
   // ...
 }
 ```
@@ -181,14 +184,14 @@ Start by deleting the Effect. Instead, adjust the state directly during renderin
 
 ```jsx
 function List({ items }) {
-  const [isReverse, setIsReverse] = useState(false);
-  const [selection, setSelection] = useState(null);
+  const [isReverse, setIsReverse] = useState(false)
+  const [selection, setSelection] = useState(null)
 
   // Better: Adjust the state while rendering
-  const [prevItems, setPrevItems] = useState(items);
+  const [prevItems, setPrevItems] = useState(items)
   if (items !== prevItems) {
-    setPrevItems(items);
-    setSelection(null);
+    setPrevItems(items)
+    setSelection(null)
   }
   // ...
 }
@@ -202,10 +205,10 @@ Although this pattern is more efficient than an Effect, most components shouldn'
 
 ```jsx
 function List({ items }) {
-  const [isReverse, setIsReverse] = useState(false);
-  const [selectedId, setSelectedId] = useState(null);
+  const [isReverse, setIsReverse] = useState(false)
+  const [selectedId, setSelectedId] = useState(null)
   // ✅ Best: Calculate everything during rendering
-  const selection = items.find((item) => item.id === selectedId) ?? null;
+  const selection = items.find((item) => item.id === selectedId) ?? null
   // ...
 }
 ```
@@ -221,17 +224,17 @@ function ProductPage({ product, addToCart }) {
   // 🔴 Avoid: Event-specific logic inside an Effect
   useEffect(() => {
     if (product.isInCart) {
-      showNotification(`Added ${product.name} to the shopping cart!`);
+      showNotification(`Added ${product.name} to the shopping cart!`)
     }
-  }, [product]);
+  }, [product])
 
   function handleBuyClick() {
-    addToCart(product);
+    addToCart(product)
   }
 
   function handleCheckoutClick() {
-    addToCart(product);
-    navigateTo('/checkout');
+    addToCart(product)
+    navigateTo("/checkout")
   }
   // ...
 }
@@ -245,17 +248,17 @@ This Effect is unnecessary. It will also most likely cause bugs. For example, le
 function ProductPage({ product, addToCart }) {
   // ✅ Good: Event-specific logic is called from event handlers
   function buyProduct() {
-    addToCart(product);
-    showNotification(`Added ${product.name} to the shopping cart!`);
+    addToCart(product)
+    showNotification(`Added ${product.name} to the shopping cart!`)
   }
 
   function handleBuyClick() {
-    buyProduct();
+    buyProduct()
   }
 
   function handleCheckoutClick() {
-    buyProduct();
-    navigateTo('/checkout');
+    buyProduct()
+    navigateTo("/checkout")
   }
   // ...
 }
@@ -269,25 +272,25 @@ This `Form` component sends two kinds of POST requests. It sends an analytics ev
 
 ```jsx
 function Form() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
 
   // ✅ Good: This logic should run because the component was displayed
   useEffect(() => {
-    post('/analytics/event', { eventName: 'visit_form' });
-  }, []);
+    post("/analytics/event", { eventName: "visit_form" })
+  }, [])
 
   // 🔴 Avoid: Event-specific logic inside an Effect
-  const [jsonToSubmit, setJsonToSubmit] = useState(null);
+  const [jsonToSubmit, setJsonToSubmit] = useState(null)
   useEffect(() => {
     if (jsonToSubmit !== null) {
-      post('/api/register', jsonToSubmit);
+      post("/api/register", jsonToSubmit)
     }
-  }, [jsonToSubmit]);
+  }, [jsonToSubmit])
 
   function handleSubmit(e) {
-    e.preventDefault();
-    setJsonToSubmit({ firstName, lastName });
+    e.preventDefault()
+    setJsonToSubmit({ firstName, lastName })
   }
   // ...
 }
@@ -301,18 +304,18 @@ However, the `/api/register` POST request is not caused by the form being _displ
 
 ```jsx
 function Form() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
 
   // ✅ Good: This logic runs because the component was displayed
   useEffect(() => {
-    post('/analytics/event', { eventName: 'visit_form' });
-  }, []);
+    post("/analytics/event", { eventName: "visit_form" })
+  }, [])
 
   function handleSubmit(e) {
-    e.preventDefault();
+    e.preventDefault()
     // ✅ Good: Event-specific logic is in the event handler
-    post('/api/register', { firstName, lastName });
+    post("/api/register", { firstName, lastName })
   }
   // ...
 }
@@ -326,40 +329,40 @@ Sometimes you might feel tempted to chain Effects that each adjust a piece of st
 
 ```jsx
 function Game() {
-  const [card, setCard] = useState(null);
-  const [goldCardCount, setGoldCardCount] = useState(0);
-  const [round, setRound] = useState(1);
-  const [isGameOver, setIsGameOver] = useState(false);
+  const [card, setCard] = useState(null)
+  const [goldCardCount, setGoldCardCount] = useState(0)
+  const [round, setRound] = useState(1)
+  const [isGameOver, setIsGameOver] = useState(false)
 
   // 🔴 Avoid: Chains of Effects that adjust the state solely to trigger each other
   useEffect(() => {
     if (card !== null && card.gold) {
-      setGoldCardCount((c) => c + 1);
+      setGoldCardCount((c) => c + 1)
     }
-  }, [card]);
+  }, [card])
 
   useEffect(() => {
     if (goldCardCount > 3) {
-      setRound((r) => r + 1);
-      setGoldCardCount(0);
+      setRound((r) => r + 1)
+      setGoldCardCount(0)
     }
-  }, [goldCardCount]);
+  }, [goldCardCount])
 
   useEffect(() => {
     if (round > 5) {
-      setIsGameOver(true);
+      setIsGameOver(true)
     }
-  }, [round]);
+  }, [round])
 
   useEffect(() => {
-    alert('Good game!');
-  }, [isGameOver]);
+    alert("Good game!")
+  }, [isGameOver])
 
   function handlePlaceCard(nextCard) {
     if (isGameOver) {
-      throw Error('Game already ended.');
+      throw Error("Game already ended.")
     } else {
-      setCard(nextCard);
+      setCard(nextCard)
     }
   }
 
@@ -377,28 +380,28 @@ In this case, it's better to calculate what you can during rendering, and adjust
 
 ```jsx
 function Game() {
-  const [card, setCard] = useState(null);
-  const [goldCardCount, setGoldCardCount] = useState(0);
-  const [round, setRound] = useState(1);
+  const [card, setCard] = useState(null)
+  const [goldCardCount, setGoldCardCount] = useState(0)
+  const [round, setRound] = useState(1)
 
   // ✅ Calculate what you can during rendering
-  const isGameOver = round > 5;
+  const isGameOver = round > 5
 
   function handlePlaceCard(nextCard) {
     if (isGameOver) {
-      throw Error('Game already ended.');
+      throw Error("Game already ended.")
     }
 
     // ✅ Calculate all the next state in the event handler
-    setCard(nextCard);
+    setCard(nextCard)
     if (nextCard.gold) {
       if (goldCardCount < 3) {
-        setGoldCardCount(goldCardCount + 1);
+        setGoldCardCount(goldCardCount + 1)
       } else {
-        setGoldCardCount(0);
-        setRound(round + 1);
+        setGoldCardCount(0)
+        setRound(round + 1)
         if (round === 5) {
-          alert('Good game!');
+          alert("Good game!")
         }
       }
     }
@@ -424,9 +427,9 @@ You might be tempted to place it in an Effect in the top-level component:
 function App() {
   // 🔴 Avoid: Effects with logic that should only ever run once
   useEffect(() => {
-    loadDataFromLocalStorage();
-    checkAuthToken();
-  }, []);
+    loadDataFromLocalStorage()
+    checkAuthToken()
+  }, [])
   // ...
 }
 ```
@@ -436,17 +439,17 @@ However, you'll quickly discover that it runs twice in development. This can cau
 Although it may not ever get remounted in practice in production, following the same constraints in all components makes it easier to move and reuse code. If some logic must run once per _app load_ rather than once per _component mount_, add a top-level variable to track whether it has already executed:
 
 ```jsx
-let didInit = false;
+let didInit = false
 
 function App() {
   useEffect(() => {
     if (!didInit) {
-      didInit = true;
+      didInit = true
       // ✅ Only runs once per app load
-      loadDataFromLocalStorage();
-      checkAuthToken();
+      loadDataFromLocalStorage()
+      checkAuthToken()
     }
-  }, []);
+  }, [])
   // ...
 }
 ```
@@ -454,11 +457,11 @@ function App() {
 You can also run it during module initialization and before the app renders:
 
 ```jsx
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // Check if we're running in the browser.
   // ✅ Only runs once per app load
-  checkAuthToken();
-  loadDataFromLocalStorage();
+  checkAuthToken()
+  loadDataFromLocalStorage()
 }
 
 function App() {
@@ -474,22 +477,22 @@ Let's say you're writing a `Toggle` component with an internal `isOn` state whic
 
 ```jsx
 function Toggle({ onChange }) {
-  const [isOn, setIsOn] = useState(false);
+  const [isOn, setIsOn] = useState(false)
 
   // 🔴 Avoid: The onChange handler runs too late
   useEffect(() => {
-    onChange(isOn);
-  }, [isOn, onChange]);
+    onChange(isOn)
+  }, [isOn, onChange])
 
   function handleClick() {
-    setIsOn(!isOn);
+    setIsOn(!isOn)
   }
 
   function handleDragEnd(e) {
     if (isCloserToRightEdge(e)) {
-      setIsOn(true);
+      setIsOn(true)
     } else {
-      setIsOn(false);
+      setIsOn(false)
     }
   }
 
@@ -503,23 +506,23 @@ Delete the Effect and instead update the state of both components within the sam
 
 ```jsx
 function Toggle({ onChange }) {
-  const [isOn, setIsOn] = useState(false);
+  const [isOn, setIsOn] = useState(false)
 
   function updateToggle(nextIsOn) {
     // ✅ Good: Perform all updates during the event that caused them
-    setIsOn(nextIsOn);
-    onChange(nextIsOn);
+    setIsOn(nextIsOn)
+    onChange(nextIsOn)
   }
 
   function handleClick() {
-    updateToggle(!isOn);
+    updateToggle(!isOn)
   }
 
   function handleDragEnd(e) {
     if (isCloserToRightEdge(e)) {
-      updateToggle(true);
+      updateToggle(true)
     } else {
-      updateToggle(false);
+      updateToggle(false)
     }
   }
 
@@ -535,14 +538,14 @@ You might also be able to remove the state altogether, and instead receive `isOn
 // ✅ Also good: the component is fully controlled by its parent
 function Toggle({ isOn, onChange }) {
   function handleClick() {
-    onChange(!isOn);
+    onChange(!isOn)
   }
 
   function handleDragEnd(e) {
     if (isCloserToRightEdge(e)) {
-      onChange(true);
+      onChange(true)
     } else {
-      onChange(false);
+      onChange(false)
     }
   }
 
@@ -558,19 +561,19 @@ This `Child` component fetches some data and then passes it to the `Parent` comp
 
 ```jsx
 function Parent() {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(null)
   // ...
-  return <Child onFetched={setData} />;
+  return <Child onFetched={setData} />
 }
 
 function Child({ onFetched }) {
-  const data = useSomeAPI();
+  const data = useSomeAPI()
   // 🔴 Avoid: Passing data to the parent in an Effect
   useEffect(() => {
     if (data) {
-      onFetched(data);
+      onFetched(data)
     }
-  }, [onFetched, data]);
+  }, [onFetched, data])
   // ...
 }
 ```
@@ -579,10 +582,10 @@ In React, data flows from the parent components to their children. When you see 
 
 ```jsx
 function Parent() {
-  const data = useSomeAPI();
+  const data = useSomeAPI()
   // ...
   // ✅ Good: Passing data down to the child
-  return <Child data={data} />;
+  return <Child data={data} />
 }
 
 function Child({ data }) {
@@ -599,26 +602,26 @@ Sometimes, your components may need to subscribe to some data outside of the Rea
 ```jsx
 function useOnlineStatus() {
   // Not ideal: Manual store subscription in an Effect
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(true)
   useEffect(() => {
     function updateState() {
-      setIsOnline(navigator.onLine);
+      setIsOnline(navigator.onLine)
     }
 
-    updateState();
+    updateState()
 
-    window.addEventListener('online', updateState);
-    window.addEventListener('offline', updateState);
+    window.addEventListener("online", updateState)
+    window.addEventListener("offline", updateState)
     return () => {
-      window.removeEventListener('online', updateState);
-      window.removeEventListener('offline', updateState);
-    };
-  }, []);
-  return isOnline;
+      window.removeEventListener("online", updateState)
+      window.removeEventListener("offline", updateState)
+    }
+  }, [])
+  return isOnline
 }
 
 function ChatIndicator() {
-  const isOnline = useOnlineStatus();
+  const isOnline = useOnlineStatus()
   // ...
 }
 ```
@@ -629,12 +632,12 @@ Although it's common to use Effects for this, React has a purpose-built Hook for
 
 ```jsx
 function subscribe(callback) {
-  window.addEventListener('online', callback);
-  window.addEventListener('offline', callback);
+  window.addEventListener("online", callback)
+  window.addEventListener("offline", callback)
   return () => {
-    window.removeEventListener('online', callback);
-    window.removeEventListener('offline', callback);
-  };
+    window.removeEventListener("online", callback)
+    window.removeEventListener("offline", callback)
+  }
 }
 
 function useOnlineStatus() {
@@ -642,12 +645,12 @@ function useOnlineStatus() {
   return useSyncExternalStore(
     subscribe, // React won't resubscribe for as long as you pass the same function
     () => navigator.onLine, // How to get the value on the client
-    () => true, // How to get the value on the server
-  );
+    () => true // How to get the value on the server
+  )
 }
 
 function ChatIndicator() {
-  const isOnline = useOnlineStatus();
+  const isOnline = useOnlineStatus()
   // ...
 }
 ```
@@ -660,18 +663,18 @@ Many apps use Effects to kick off data fetching. It is quite common to write a d
 
 ```jsx
 function SearchResults({ query }) {
-  const [results, setResults] = useState([]);
-  const [page, setPage] = useState(1);
+  const [results, setResults] = useState([])
+  const [page, setPage] = useState(1)
 
   useEffect(() => {
     // 🔴 Avoid: Fetching without cleanup logic
     fetchResults(query, page).then((json) => {
-      setResults(json);
-    });
-  }, [query, page]);
+      setResults(json)
+    })
+  }, [query, page])
 
   function handleNextPageClick() {
-    setPage(page + 1);
+    setPage(page + 1)
   }
   // ...
 }
@@ -689,22 +692,22 @@ However, the code above has a bug. Imagine you type "hello" fast. Then the `quer
 
 ```jsx
 function SearchResults({ query }) {
-  const [results, setResults] = useState([]);
-  const [page, setPage] = useState(1);
+  const [results, setResults] = useState([])
+  const [page, setPage] = useState(1)
   useEffect(() => {
-    let ignore = false;
+    let ignore = false
     fetchResults(query, page).then((json) => {
       if (!ignore) {
-        setResults(json);
+        setResults(json)
       }
-    });
+    })
     return () => {
-      ignore = true;
-    };
-  }, [query, page]);
+      ignore = true
+    }
+  }, [query, page])
 
   function handleNextPageClick() {
-    setPage(page + 1);
+    setPage(page + 1)
   }
   // ...
 }
@@ -720,32 +723,32 @@ If you don't use a framework (and don't want to build your own) but would like t
 
 ```jsx
 function SearchResults({ query }) {
-  const [page, setPage] = useState(1);
-  const params = new URLSearchParams({ query, page });
-  const results = useData(`/api/search?${params}`);
+  const [page, setPage] = useState(1)
+  const params = new URLSearchParams({ query, page })
+  const results = useData(`/api/search?${params}`)
 
   function handleNextPageClick() {
-    setPage(page + 1);
+    setPage(page + 1)
   }
   // ...
 }
 
 function useData(url) {
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(null)
   useEffect(() => {
-    let ignore = false;
+    let ignore = false
     fetch(url)
       .then((response) => response.json())
       .then((json) => {
         if (!ignore) {
-          setData(json);
+          setData(json)
         }
-      });
+      })
     return () => {
-      ignore = true;
-    };
-  }, [url]);
-  return data;
+      ignore = true
+    }
+  }, [url])
+  return data
 }
 ```
 

@@ -32,24 +32,35 @@ Server functions (`createServerFn`) replace a separate API layer for most calls.
 
 `better-sqlite3` is synchronous, zero-config, and fast. For a single-user app with no concurrent writes there is no reason to reach for an async driver or a separate database process. Drizzle sits on top and keeps all queries type-safe.
 
-Vitest shares Vite's config and transform pipeline — no separate build setup, no surprises. Tests live next to the files they cover. The rule-based progression logic in `lib/rules.ts` is the code most worth unit testing; AI calls and DB interactions are covered with integration tests only.
+Vitest has its own `vitest.config.ts` using happy-dom as the test environment. Setup file at `src/test/setup.ts` configures jest-dom matchers. Tests live next to the files they cover. The rule-based progression logic in `lib/rules.ts` is the code most worth unit testing; AI calls and DB interactions are covered with integration tests only.
 
-shadcn/ui components are copied into `components/ui/` by the CLI — they are local source, not a package dependency. Tailwind CSS v4 is in use, with configuration in `app.css` rather than `tailwind.config.js`.
+shadcn/ui components are copied into `src/components/ui/` by the CLI — they are local source, not a package dependency. Tailwind CSS v4 is in use, with configuration in `src/styles.css` using `@import "tailwindcss"` syntax rather than `@tailwind` directives. Theme customization via CSS variables in `@theme` blocks, not `tailwind.config.js`.
 
-### One required config
+### Configuration
 
-TanStack Start can target edge runtimes or a Node.js server. Set the Node preset explicitly — do not leave it as the default.
+TanStack Start uses `vite.config.ts` for configuration. Key plugins required:
 
 ```ts
-// app.config.ts
-import { defineConfig } from "@tanstack/start/config";
+// vite.config.ts
+import { defineConfig } from "vite"
+import { tanstackStart } from "@tanstack/react-start/plugin/vite"
+import viteReact from "@vitejs/plugin-react"
+import tailwindcss from "@tailwindcss/vite"
 
 export default defineConfig({
-  server: {
-    preset: "node-server",
-  },
-});
+  plugins: [
+    tailwindcss(), // Tailwind CSS v4 support
+    tanstackStart({
+      router: {
+        routeFileIgnorePattern: "\\.test\\.", // Ignore test files
+      },
+    }),
+    viteReact(),
+  ],
+})
 ```
+
+**Critical**: Remove `verbatimModuleSyntax: true` from `tsconfig.json` to prevent server bundles from leaking into client builds.
 
 ### Data flow
 
@@ -67,31 +78,49 @@ The workout execution screen is the exception — it runs entirely in local Zust
 ### File structure
 
 ```
-app/
+src/
   routes/
+    __root.tsx             — root layout with CSS import
     index.tsx              — dashboard (current week, next session)
-    onboarding.tsx         — 5-screen onboarding flow
-    session/$id.tsx        — workout execution
-    plan.tsx               — program overview (read-only)
-    feedback/$id.tsx       — post-workout feedback
-  functions/
+    onboarding.tsx         — 5-screen onboarding flow (Phase 3+)
+    session/$id.tsx        — workout execution (Phase 5+)
+    plan.tsx               — program overview (read-only, Phase 4+)
+    feedback/$id.tsx       — post-workout feedback (Phase 5+)
+  functions/               — server functions (Phase 2+)
     generatePlan.ts        — server fn: calls AI, writes program to DB
     logSet.ts              — server fn: writes set_log row
     completeSession.ts     — server fn: writes workout_log, triggers progression check
     adaptWeek.ts           — server fn: weekly AI adaptation call
     swapExercise.ts        — server fn: on-demand exercise swap via AI
-lib/
+  components/
+    ui/                    — shadcn components (6 installed: Button, Input, Card, Slider, Tabs, Progress)
+  lib/
+    utils.ts               — cn() helper for classnames
+  test/
+    setup.ts               — Vitest setup with jest-dom
+    utils.tsx              — test utilities
+  router.tsx               — router configuration
+  routeTree.gen.ts         — auto-generated route tree
+  styles.css               — Tailwind v4 CSS (uses @import "tailwindcss" syntax)
+lib/                       — business logic (Phase 2+)
   db.ts                    — Drizzle + better-sqlite3 setup
   schema.ts                — Drizzle schema definitions
   ai.ts                    — Anthropic client abstraction (provider-swappable)
   rules.ts                 — rule-based progression logic (no AI)
   rules.test.ts            — Vitest unit tests for progression rules
   prompts.ts               — system prompts, one constant per AI call type
-data/
+data/                      — static data (Phase 2+)
   exercises.ts             — seeded exercise library (~35 entries)
-components/
-  ui/                      — shadcn components (local source, editable)
 ```
+
+**Phase 1 Complete** (2026-04-06):
+
+- TanStack Start initialized with TypeScript
+- Tailwind CSS v4 configured with `@import` syntax
+- shadcn/ui: Button, Input, Card, Slider, Tabs, Progress installed
+- Vitest configured with happy-dom environment
+- Core dependencies: Drizzle, better-sqlite3, Anthropic SDK, Zustand
+- Directory structure created and ready for Phase 2
 
 ---
 
@@ -301,16 +330,16 @@ Keep all AI calls behind a single `ai.ts` abstraction so the provider can be swa
 
 ```ts
 // lib/ai.ts
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk"
 
-const client = new Anthropic();
+const client = new Anthropic()
 
 export async function generatePlan(prompt: string) {
   return client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
-  });
+  })
 }
 ```
 
@@ -345,29 +374,37 @@ The adaptation loop in MVP is a manual "Suggest adjustments for next week" butto
 
 ## 6. Development plan
 
-### Week 1 — Foundation
+### Phase 1 — Foundation ✅ COMPLETE
 
-TanStack Start project with Node.js server preset. pnpm as package manager. Drizzle schema, `better-sqlite3` setup, exercise library seeded from a JSON file (~35 exercises). Vitest configured alongside Vite. Basic routing structure. Onboarding UI that saves to DB. Plan preview screen with hardcoded dummy data to validate the layout.
+TanStack Start project initialized. pnpm as package manager. Vitest configured with happy-dom. shadcn/ui components installed (Button, Input, Card, Slider, Tabs, Progress). Tailwind CSS v4 configured with `@import` syntax. Core dependencies installed (Drizzle, better-sqlite3, Anthropic SDK, Zustand). Directory structure created. TypeScript optimized (removed `verbatimModuleSyntax`). Tests passing.
 
-No AI yet.
+Status: ✅ Ready for Phase 2
 
-### Week 2 — AI plan generation
+### Phase 2 — Database Setup (Next)
+
+Drizzle schema definition in `lib/schema.ts`. Database initialization in `lib/db.ts`. Exercise library seeded from `data/exercises.ts` (~35 exercises). Database migrations. Basic routing structure. No AI yet.
+
+### Phase 3 — Onboarding UI
+
+5-screen onboarding flow that saves to DB. Form validation. Equipment multi-select. Schedule pickers. Custom directives textarea. Plan preview screen with hardcoded dummy data to validate the layout.
+
+### Phase 4 — AI plan generation
 
 Write the system prompt. Define the JSON output schema. Build the `generatePlan` server function that calls Claude and stores the parsed plan. Connect onboarding to real plan generation. Add the plan view screen pulling from DB.
 
-### Week 3 — Workout execution
+### Phase 5 — Workout execution
 
 The hardest screen. Session page with exercise-by-exercise flow, set logging inputs, rest timer (CSS countdown, Zustand state), "finish workout" that writes `workout_log` and all `set_log` rows. Post-workout feedback screen.
 
-### Week 4 — Real usage
+### Phase 6 — Real usage
 
 Go train. Identify the three most annoying UX friction points. Fix those. Mobile polish: safe area insets, large tap targets, no tiny inputs. Deploy to Fly.io so it works on your phone.
 
-### Week 5 — Rule-based progression
+### Phase 7 — Rule-based progression
 
 After each session, compute which exercises passed the progression threshold and flag the load for next session. Show: _"Based on today — next session: Squat → 102.5 kg."_
 
-### Week 6 — Adaptation
+### Phase 8 — Adaptation
 
 Now there is real data. Build the weekly adaptation AI call. Start with a manual trigger button. Evaluate the output quality against actual training experience. Tune the prompt. Only automate once the output is trusted.
 

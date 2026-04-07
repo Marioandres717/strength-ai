@@ -46,7 +46,7 @@ clarity, correctness, and maintainability.
       // ...
     }
 
-    <button onClick={handleClick} />;
+    ;<button onClick={handleClick} />
     ```
 
   - Over:
