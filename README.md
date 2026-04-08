@@ -70,6 +70,7 @@ pnpm db:seed          # Seed the exercise library (idempotent, safe to re-run)
 | Framework  | TanStack Start (Vite + TanStack Router) |
 | Database   | Drizzle ORM + better-sqlite3            |
 | AI         | Anthropic SDK (`claude-sonnet-4-6`)     |
+| Validation | Zod (AI output schemas)                 |
 | State      | Zustand (workout execution only)        |
 | Testing    | Vitest + happy-dom                      |
 | UI         | shadcn/ui + Tailwind CSS v4             |

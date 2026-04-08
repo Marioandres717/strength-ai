@@ -19,6 +19,7 @@ The product should feel like a performance tool — authoritative, decisive, low
 | Framework       | TanStack Start (Vite + TanStack Router)                   |
 | Database        | Drizzle ORM + `better-sqlite3`                            |
 | AI calls        | Anthropic SDK (Claude), called from server functions only |
+| Validation      | Zod (AI response schemas)                                 |
 | Client state    | Zustand (workout execution screen)                        |
 | Testing         | Vitest                                                    |
 | UI              | shadcn/ui + Tailwind CSS v4                               |
@@ -329,17 +330,28 @@ Use `claude-sonnet-4-6` for plan generation and adaptation — it handles the nu
 Keep all AI calls behind a single `ai.ts` abstraction so the provider can be swapped per call type without touching business logic.
 
 ```ts
-// lib/ai.ts
+// lib/ai.ts (excerpt)
 import Anthropic from "@anthropic-ai/sdk"
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod"
+import { z } from "zod"
+import { PLAN_GENERATION_PROMPT, buildPlanUserMessage } from "./prompts"
 
-const client = new Anthropic()
+const PlanGenerationSchema = z.object({
+  /* ... */
+})
 
-export async function generatePlan(prompt: string) {
-  return client.messages.create({
+export async function generatePlan(
+  input: PlanGenerationInput
+): Promise<z.infer<typeof PlanGenerationSchema>> {
+  const message = await client.messages.parse({
     model: "claude-sonnet-4-6",
-    max_tokens: 4096,
-    messages: [{ role: "user", content: prompt }],
+    max_tokens: 8192,
+    temperature: 0,
+    system: PLAN_GENERATION_PROMPT,
+    messages: [{ role: "user", content: buildPlanUserMessage(input) }],
+    output_config: { format: zodOutputFormat(PlanGenerationSchema) },
   })
+  return message.parsed_output! // Zod validates before this line returns
 }
 ```
 
@@ -378,33 +390,35 @@ The adaptation loop in MVP is a manual "Suggest adjustments for next week" butto
 
 TanStack Start project initialized. pnpm as package manager. Vitest configured with happy-dom. shadcn/ui components installed (Button, Input, Card, Slider, Tabs, Progress). Tailwind CSS v4 configured with `@import` syntax. Core dependencies installed (Drizzle, better-sqlite3, Anthropic SDK, Zustand). Directory structure created. TypeScript optimized (removed `verbatimModuleSyntax`). Tests passing.
 
-Status: ✅ Ready for Phase 2
+### Phase 2 — Database Setup ✅ COMPLETE
 
-### Phase 2 — Database Setup (Next)
+Drizzle schema definition in `lib/schema.ts` (7 tables, cascade FKs, JSON columns). Database initialization in `lib/db.ts` with WAL mode and foreign keys. Exercise library seeded from `data/exercises.ts` (31 exercises). `drizzle.config.ts` for `pnpm db:push` and `pnpm db:studio`. SQLite database created and seeded.
 
-Drizzle schema definition in `lib/schema.ts`. Database initialization in `lib/db.ts`. Exercise library seeded from `data/exercises.ts` (~35 exercises). Database migrations. Basic routing structure. No AI yet.
+### Phase 3 — AI Integration ✅ COMPLETE
 
-### Phase 3 — Onboarding UI
+`lib/ai.ts` with Zod output schemas, three typed async functions (`generatePlan`, `adaptWeek`, `swapExercise`), exercise name resolution (three-tier fuzzy cascade), and per-call logging. `lib/prompts.ts` with system prompts and user-message builder functions. `lib/ai.test.ts` with 34 unit tests + conditional integration test. Zod added as direct dependency; all AI output validated at runtime before reaching the database.
+
+### Phase 4 — Onboarding UI
 
 5-screen onboarding flow that saves to DB. Form validation. Equipment multi-select. Schedule pickers. Custom directives textarea. Plan preview screen with hardcoded dummy data to validate the layout.
 
-### Phase 4 — AI plan generation
+### Phase 5 — AI plan generation wired up
 
-Write the system prompt. Define the JSON output schema. Build the `generatePlan` server function that calls Claude and stores the parsed plan. Connect onboarding to real plan generation. Add the plan view screen pulling from DB.
+Build the `generatePlan` server function that calls `lib/ai.ts` and stores the parsed plan. Connect onboarding to real plan generation. Add the plan view screen pulling from DB.
 
-### Phase 5 — Workout execution
+### Phase 6 — Workout execution
 
 The hardest screen. Session page with exercise-by-exercise flow, set logging inputs, rest timer (CSS countdown, Zustand state), "finish workout" that writes `workout_log` and all `set_log` rows. Post-workout feedback screen.
 
-### Phase 6 — Real usage
+### Phase 7 — Real usage
 
 Go train. Identify the three most annoying UX friction points. Fix those. Mobile polish: safe area insets, large tap targets, no tiny inputs. Deploy to Fly.io so it works on your phone.
 
-### Phase 7 — Rule-based progression
+### Phase 8 — Rule-based progression
 
 After each session, compute which exercises passed the progression threshold and flag the load for next session. Show: _"Based on today — next session: Squat → 102.5 kg."_
 
-### Phase 8 — Adaptation
+### Phase 9 — Adaptation
 
 Now there is real data. Build the weekly adaptation AI call. Start with a manual trigger button. Evaluate the output quality against actual training experience. Tune the prompt. Only automate once the output is trusted.
 

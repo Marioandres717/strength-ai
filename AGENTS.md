@@ -38,6 +38,7 @@ in routes or components.
 | Framework       | TanStack Start (Vite + TanStack Router) |
 | Database        | Drizzle ORM + better-sqlite3            |
 | AI              | Anthropic SDK — `claude-sonnet-4-6`     |
+| Validation      | Zod — AI response schemas               |
 | Client state    | Zustand (workout execution screen only) |
 | Testing         | Vitest                                  |
 | UI              | shadcn/ui + Tailwind CSS v4             |
@@ -169,10 +170,10 @@ lib/                       — business logic
   db.ts                    — Drizzle + better-sqlite3 setup ✅
   schema.ts                — Drizzle schema definitions ✅
   seed.ts                  — exercise library seed (run via pnpm db:seed) ✅
-  ai.ts                    — Anthropic client abstraction
+  ai.ts                    — Anthropic client abstraction + Zod output schemas ✅
   rules.ts                 — rule-based progression logic (no AI)
   rules.test.ts            — Vitest unit tests for progression rules
-  prompts.ts               — system prompts, one constant per AI call type
+  prompts.ts               — system prompts, one constant per AI call type ✅
 data/                      — static data
   exercises.ts             — seeded exercise library (31 entries, no UI to manage) ✅
 ```
@@ -195,6 +196,15 @@ data/                      — static data
 - `drizzle.config.ts` — drizzle-kit config (`pnpm db:push`, `pnpm db:studio`)
 - `strength.db` — SQLite database created and seeded (gitignored)
 - Note: `better-sqlite3` requires `pnpm rebuild better-sqlite3` on first setup (native binding)
+
+**Phase 3 Status**: ✅ Complete
+
+- `lib/prompts.ts` — system prompts + user-turn builder functions for all 3 AI call types
+- `lib/ai.ts` — Anthropic client singleton, Zod output schemas, 3 exported async functions (`generatePlan`, `adaptWeek`, `swapExercise`), exercise name resolution
+- `lib/ai.test.ts` — unit tests (Zod schema validation, name resolution, builder functions) + conditional integration tests
+- `zod` added as direct dependency (was already present as SDK peer dep)
+- All AI output validated at runtime via Zod before reaching the database
+- Import: `zodOutputFormat` from `@anthropic-ai/sdk/helpers/zod`
 
 ---
 

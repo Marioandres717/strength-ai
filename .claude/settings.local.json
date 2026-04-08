@@ -7,7 +7,14 @@
       "Bash(pnpm db:push)",
       "Bash(pnpm rebuild:*)",
       "Bash(pnpm db:seed)",
-      "Bash(pnpm typecheck:*)"
+      "Bash(pnpm typecheck:*)",
+      "Bash(npx ctx7@latest:*)",
+      "Bash(pnpm add:*)",
+      "Bash(node -e \"const sdk = require\\('@anthropic-ai/sdk'\\); console.log\\(Object.keys\\(sdk\\).filter\\(k => k.toLowerCase\\(\\).includes\\('zod'\\)\\)\\)\")",
+      "Bash(node -e \" const helpers = require\\('@anthropic-ai/sdk/helpers/zod'\\); console.log\\('helpers/zod exports:', Object.keys\\(helpers\\)\\); \")",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm lint:fix)"
     ]
   }
 }
