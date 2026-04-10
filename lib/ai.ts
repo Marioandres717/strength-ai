@@ -66,7 +66,7 @@ export interface ExerciseLibraryEntry {
 }
 
 export interface PlanGenerationInput {
-  goal: "strength" | "hypertrophy" | "both"
+  goal: "strength" | "hypertrophy" | "both" | "recomp" | "fat_loss"
   experience: "beginner" | "intermediate" | "advanced"
   equipment: string[]
   sessionsPerWeek: number

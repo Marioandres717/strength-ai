@@ -1,4 +1,10 @@
-import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+  useRouterState,
+} from "@tanstack/react-router"
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools"
 import { TanStackDevtools } from "@tanstack/react-devtools"
 import Footer from "../components/Footer"
@@ -30,8 +36,10 @@ export const Route = createRootRoute({
     ],
   }),
   shellComponent: RootDocument,
+  component: RootLayout,
 })
 
+// Shell: pure HTML document wrapper — no router hooks allowed here
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -40,9 +48,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="font-sans wrap-anywhere antialiased selection:bg-[rgba(79,184,178,0.24)]">
-        <Header />
         {children}
-        <Footer />
         <TanStackDevtools
           config={{
             position: "bottom-right",
@@ -57,5 +63,19 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
+  )
+}
+
+// Layout: safe to use router hooks — conditionally renders chrome
+function RootLayout() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const bare = pathname === "/onboarding"
+
+  return (
+    <>
+      {!bare && <Header />}
+      <Outlet />
+      {!bare && <Footer />}
+    </>
   )
 }
