@@ -82,11 +82,7 @@ coachNotes must reflect the exercise's role in that specific session, not generi
 
 ## aiRationale field
 
-The aiRationale on the program object is shown to the user in the app. Write 2–3 sentences in plain language explaining the program design philosophy: why this structure, why these exercises, what the progression aims to achieve.
-
-## reasoning field
-
-The top-level reasoning field is a detailed internal log of all programming decisions — periodization model chosen, exercise selection rationale, how progression is structured across the 4 weeks. This is not shown to users.`
+The aiRationale on the program object is shown to the user in the app. Write 2–3 sentences in plain language explaining the program design philosophy: why this structure, why these exercises, what the progression aims to achieve.`
 
 export const ADAPTATION_PROMPT = `You are reviewing one week of completed training data and proposing specific adjustments for the following week.
 
