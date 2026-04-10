@@ -1,5 +1,6 @@
 import {
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   createRootRoute,
@@ -37,6 +38,15 @@ export const Route = createRootRoute({
   }),
   shellComponent: RootDocument,
   component: RootLayout,
+  notFoundComponent: () => (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
+      <h1 className="text-4xl font-bold text-white">404</h1>
+      <p className="text-[#6b7280]">{"This page doesn't exist."}</p>
+      <Link to="/" className="text-[#4fb8b2] hover:underline">
+        Go home
+      </Link>
+    </div>
+  ),
 })
 
 // Shell: pure HTML document wrapper — no router hooks allowed here
