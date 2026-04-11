@@ -14,7 +14,23 @@
       "Bash(node -e \" const helpers = require\\('@anthropic-ai/sdk/helpers/zod'\\); console.log\\('helpers/zod exports:', Object.keys\\(helpers\\)\\); \")",
       "Bash(pnpm test:*)",
       "Bash(pnpm lint:*)",
-      "Bash(pnpm lint:fix)"
+      "Bash(pnpm lint:fix)",
+      "Bash(xargs grep:*)",
+      "Bash(pnpm tsc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(echo \"exit: $?\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(cmd /c mklink /J \"C:\\\\Users\\\\USER\\\\OneDrive\\\\Desktop\\\\strength-ai\\\\.claude\\\\worktrees\\\\loving-hodgkin\\\\node_modules\" \"C:\\\\Users\\\\USER\\\\OneDrive\\\\Desktop\\\\strength-ai\\\\node_modules\")",
+      "Bash(cmd /c \"dir C:\\\\Users\\\\USER\\\\OneDrive\\\\Desktop\\\\strength-ai\\\\.claude\\\\worktrees\\\\loving-hodgkin\\\\node_modules 2>&1\")",
+      "Bash(cmd /c \"dir \\\\\"C:\\\\\\\\Users\\\\\\\\USER\\\\\\\\OneDrive\\\\\\\\Desktop\\\\\\\\strength-ai\\\\\\\\.claude\\\\\\\\worktrees\\\\\\\\loving-hodgkin\\\\\"\")",
+      "Read(//c/Users/USER/OneDrive/Desktop/strength-ai/node_modules/@tanstack/react-start/bin//**)",
+      "Read(//c/Users/USER/OneDrive/Desktop/strength-ai/node_modules/@tanstack/react-start/**)",
+      "Bash(python3 -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\(json.dumps\\(p.get\\('bin',{}\\), indent=2\\)\\)\")",
+      "Bash(node -e \"const p=require\\('/c/Users/USER/OneDrive/Desktop/strength-ai/node_modules/@tanstack/react-start/package.json'\\); console.log\\(JSON.stringify\\(p.bin\\)\\); console.log\\(JSON.stringify\\(Object.keys\\(p.exports||{}\\).slice\\(0,10\\)\\)\\)\")",
+      "Bash(pnpm validate:*)",
+      "Bash(npx prettier:*)",
+      "Bash(git stash:*)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
     ]
   }
 }

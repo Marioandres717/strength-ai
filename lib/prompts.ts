@@ -47,6 +47,22 @@ When the athlete has not specified a load, estimate conservatively. Barbell squa
 - Weeks 1–2: slightly more hypertrophy emphasis (higher reps, shorter rest)
 - Weeks 3–4: shift toward strength emphasis (lower reps, heavier loads)
 
+**Recomp (body recomposition):**
+- Rep ranges: 8–12 reps for all exercises
+- RIR target: 1–2 on working sets
+- Rest: 60–90 seconds between sets (keeps heart rate elevated for metabolic demand)
+- Prioritise compound movements with high muscle recruitment — squats, deadlifts, rows, presses
+- Volume: moderate (3–4 sets per exercise), consistent across all 4 weeks with small load progressions
+- Aim to preserve and build muscle while supporting fat loss through training density
+
+**Fat Loss:**
+- Rep ranges: 10–15 reps for all exercises
+- RIR target: 1 on working sets (train close to failure to preserve muscle)
+- Rest: 60 seconds between sets — keep density high
+- Prefer total-body session structures when schedule allows, otherwise upper/lower split
+- Include compound movements to maximise caloric expenditure; limit pure isolation work
+- Avoid deload weeks in this 4-week block — maintain training stimulus throughout
+
 ## Progressive overload across weeks
 
 Week 1 is the base. Weeks 2–4 must demonstrate logical progression — increase either volume OR intensity, not both simultaneously.
@@ -66,11 +82,7 @@ coachNotes must reflect the exercise's role in that specific session, not generi
 
 ## aiRationale field
 
-The aiRationale on the program object is shown to the user in the app. Write 2–3 sentences in plain language explaining the program design philosophy: why this structure, why these exercises, what the progression aims to achieve.
-
-## reasoning field
-
-The top-level reasoning field is a detailed internal log of all programming decisions — periodization model chosen, exercise selection rationale, how progression is structured across the 4 weeks. This is not shown to users.`
+The aiRationale on the program object is shown to the user in the app. Write 2–3 sentences in plain language explaining the program design philosophy: why this structure, why these exercises, what the progression aims to achieve.`
 
 export const ADAPTATION_PROMPT = `You are reviewing one week of completed training data and proposing specific adjustments for the following week.
 

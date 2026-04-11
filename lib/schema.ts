@@ -24,7 +24,7 @@ export const exercise = sqliteTable("exercise", {
 export const userProfile = sqliteTable("user_profile", {
   id: text("id").primaryKey(),
   goal: text("goal", {
-    enum: ["strength", "hypertrophy", "both"],
+    enum: ["strength", "hypertrophy", "both", "recomp", "fat_loss"],
   }).notNull(),
   experience: text("experience", {
     enum: ["beginner", "intermediate", "advanced"],
@@ -168,6 +168,8 @@ export const schema = {
 
 export type InsertExercise = typeof exercise.$inferInsert
 export type SelectExercise = typeof exercise.$inferSelect
+
+export type Goal = "strength" | "hypertrophy" | "both" | "recomp" | "fat_loss"
 
 export type InsertUserProfile = typeof userProfile.$inferInsert
 export type SelectUserProfile = typeof userProfile.$inferSelect

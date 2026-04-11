@@ -4,6 +4,17 @@
 
 @theme {
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+
+  /* ── Onboarding dark-mode palette ── */
+  --color-accent: #00c9a7;
+  --color-bg: #0d0d0d;
+  --color-surface: #1c1c1e;
+  --color-surface-selected: #0a1f1c;
+  --color-border: #2a2a2a;
+  --color-border-hover: #3a3a3a;
+  --color-muted: #6b7280;
+  --color-muted-dim: #4a4a4a;
+  --color-muted-light: #9ca3af;
 }
 
 :root {

@@ -66,7 +66,7 @@ export interface ExerciseLibraryEntry {
 }
 
 export interface PlanGenerationInput {
-  goal: "strength" | "hypertrophy" | "both"
+  goal: "strength" | "hypertrophy" | "both" | "recomp" | "fat_loss"
   experience: "beginner" | "intermediate" | "advanced"
   equipment: string[]
   sessionsPerWeek: number
@@ -156,7 +156,6 @@ export const PlanGenerationSchema = z.object({
     aiRationale: z.string(),
   }),
   weeks: z.array(WeekOutputSchema).min(4).max(4),
-  reasoning: z.string(),
 })
 
 export const AdaptationSchema = z.object({
@@ -370,14 +369,17 @@ export async function generatePlan(
   const summary = `goal=${input.goal} exp=${input.experience} sessions=${input.sessionsPerWeek} exercises=${input.exerciseLibrary.length}`
 
   try {
-    const message = await client.messages.parse({
-      model: MODEL,
-      max_tokens: 8192,
-      temperature: 0,
-      system: PLAN_GENERATION_PROMPT,
-      messages: [{ role: "user", content: buildPlanUserMessage(input) }],
-      output_config: { format: zodOutputFormat(PlanGenerationSchema) },
-    })
+    const message = await client.messages.parse(
+      {
+        model: MODEL,
+        max_tokens: 16000,
+        temperature: 0,
+        system: PLAN_GENERATION_PROMPT,
+        messages: [{ role: "user", content: buildPlanUserMessage(input) }],
+        output_config: { format: zodOutputFormat(PlanGenerationSchema) },
+      },
+      { headers: { "anthropic-beta": "output-128k-2025-02-19" } }
+    )
 
     if (!message.parsed_output) {
       throw new AICallError(
