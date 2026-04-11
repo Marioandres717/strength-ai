@@ -1,5 +1,6 @@
 import { type ReactElement } from "react"
 import { render, type RenderOptions } from "@testing-library/react"
+import type { WizardData } from "../types/wizard"
 
 /**
  * Custom render function for testing
@@ -10,6 +11,18 @@ export function customRender(
   options?: Omit<RenderOptions, "wrapper">
 ) {
   return render(ui, { ...options })
+}
+
+/** Builds a complete valid WizardData object for use in tests */
+export function makeWizardData(overrides?: Partial<WizardData>): WizardData {
+  return {
+    goal: "strength",
+    equipmentPreset: "full_gym",
+    experience: "beginner",
+    daysPerWeek: 3,
+    sessionLengthMin: 45,
+    ...overrides,
+  }
 }
 
 // Re-export everything from testing-library
