@@ -146,18 +146,24 @@ src/
   routes/
     __root.tsx             — root layout with CSS import
     index.tsx              — dashboard (current week, next session)
-    onboarding.tsx         — 5-screen onboarding flow (to be built)
+    onboarding.tsx         — 5-screen onboarding flow ✅
     session/$id.tsx        — workout execution (heart of the app, to be built)
     plan.tsx               — program overview, read-only (to be built)
     feedback/$id.tsx       — post-workout feedback (to be built)
-  functions/               — server functions (empty, Phase 2+)
-    generatePlan.ts        — server fn: calls AI, writes program to DB
+  functions/
+    generatePlan.ts        — server fn: calls AI, writes program to DB ✅
     logSet.ts              — server fn: writes set_log row
     completeSession.ts     — server fn: writes workout_log, triggers progression check
     adaptWeek.ts           — server fn: weekly AI adaptation call
     swapExercise.ts        — server fn: on-demand exercise swap via AI
   components/
+    PlanGenerationScreen.tsx — loading screen with progress checklist ✅
+    StepIndicator.tsx      — progress indicator component ✅
+    OptionCard.tsx         — option selection component ✅
+    ChipButton.tsx         — chip/button component ✅
     ui/                    — shadcn components (6 installed: Button, Input, Card, Slider, Tabs, Progress)
+  types/
+    wizard.ts              — wizard types (Goal, Experience, EquipmentPreset, etc.) ✅
   lib/
     utils.ts               — cn() helper for classnames
   test/
@@ -165,7 +171,7 @@ src/
     utils.tsx              — test utilities (custom render)
   router.tsx               — router configuration
   routeTree.gen.ts         — auto-generated route tree
-  styles.css               — Tailwind v4 CSS (uses @import syntax)
+  styles.css               — Tailwind v4 CSS with theme variables ✅
 lib/                       — business logic
   db.ts                    — Drizzle + better-sqlite3 setup ✅
   schema.ts                — Drizzle schema definitions ✅
@@ -205,6 +211,19 @@ data/                      — static data
 - `zod` added as direct dependency (was already present as SDK peer dep)
 - All AI output validated at runtime via Zod before reaching the database
 - Import: `zodOutputFormat` from `@anthropic-ai/sdk/helpers/zod`
+
+**Phase 4 Status**: ✅ Complete
+
+- `src/routes/onboarding.tsx` — 5-screen wizard (Goal → Equipment → Experience → Schedule → Custom Directives)
+- `src/components/PlanGenerationScreen.tsx` — full-screen loading UI with animated progress checklist
+- `src/components/StepIndicator.tsx` — progress bar component
+- `src/components/OptionCard.tsx` — reusable option selection component
+- `src/components/ChipButton.tsx` — reusable chip/button component for choices
+- `src/types/wizard.ts` — centralized wizard type definitions (Goal, EquipmentPreset, Experience, DaysPerWeek, SessionLength, WizardData)
+- `src/functions/generatePlan.ts` — server function: calls AI with user profile, validates response, writes program + sessions to DB
+- Onboarding UI uses Tailwind v4 CSS variables (no hardcoded colors)
+- All 5 steps deduplicated into generic `OptionListStep<T>` component where applicable
+- TypeScript strict mode with proper typing throughout
 
 ---
 
