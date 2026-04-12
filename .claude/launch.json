@@ -6,7 +6,7 @@
       "runtimeExecutable": "cmd",
       "runtimeArgs": [
         "/c",
-        "cd /d C:\\Users\\USER\\OneDrive\\Desktop\\strength-ai\\.claude\\worktrees\\loving-hodgkin && C:\\Users\\USER\\OneDrive\\Desktop\\strength-ai\\node_modules\\.bin\\vite.cmd dev --port 3000"
+        "cd /d C:\\Users\\USER\\OneDrive\\Desktop\\strength-ai && C:\\Users\\USER\\OneDrive\\Desktop\\strength-ai\\node_modules\\.bin\\vite.cmd dev --port 3000"
       ],
       "port": 3000
     },

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
 import { render, screen, act, waitFor, fireEvent } from "../test/utils"
 import userEvent from "@testing-library/user-event"
 import type * as TanstackRouter from "@tanstack/react-router"
-import { OnboardingPage } from "./onboarding"
+import { OnboardingPage } from "../components/OnboardingPage"
 
 // ── Hoisted mocks ─────────────────────────────────────────────────────────────
 
