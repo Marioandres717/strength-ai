@@ -20,3 +20,8 @@ coverage
 pnpm-lock.yaml
 package-lock.json
 yarn.lock
+
+# Agent and tool configuration
+.agents
+.claude
+.vscode

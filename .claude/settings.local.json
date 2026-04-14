@@ -30,7 +30,12 @@
       "Bash(pnpm validate:*)",
       "Bash(npx prettier:*)",
       "Bash(git stash:*)",
-      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(npm run:*)",
+      "Bash(node -e \"const r = require\\('@tanstack/react-router'\\); console.log\\(typeof r.redirect\\)\")",
+      "Bash(node -e \"const { redirect, isRedirect } = require\\('@tanstack/react-router'\\); const r = redirect\\({to:'/'}\\); console.log\\(r instanceof Error, Object.keys\\(r\\)\\)\")",
+      "Bash(pnpm prettier:*)",
+      "Bash(pnpm format:check)"
     ]
   }
 }
