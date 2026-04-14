@@ -151,14 +151,36 @@ Define strict schema for AI output:
 
 ---
 
-## Phase 5: Dashboard
+## Phase 5: Dashboard ✅ COMPLETE
 
-### 5.1 Route: `app/routes/index.tsx`
+### 5.1 Route: `src/routes/index.tsx` ✅
 
 - Current week overview
 - Next session card (prominent)
 - Session list for the week with completion status
 - Link to plan view
+
+### 5.2 Dashboard Components ✅
+
+**Main Orchestrator:**
+- `src/components/DashboardPage.tsx` — handles three states (no_profile, no_program, active) with conditional UI
+
+**Sub-components:**
+- `src/components/dashboard/ProgramHeader.tsx` — program name, AI rationale, week progress
+- `src/components/dashboard/NextSessionCard.tsx` — next session details, exercise preview, focus label
+- `src/components/dashboard/WeekGrid.tsx` — session status grid (completed, next, missed, upcoming) with focus labels
+- `src/components/dashboard/WeekProgressBar.tsx` — visual progress indicator
+- `src/components/dashboard/ProgramFooter.tsx` — program completion state and call-to-action
+
+### 5.3 Server Function ✅
+
+- `src/functions/getDashboardData.ts` — fetches active program, current week, sessions, and computes dashboard state
+
+### 5.4 Test Coverage ✅
+
+- 46 unit tests across all dashboard components
+- All 169 tests passing
+- Focus labels replace 3-char abbreviations for improved clarity
 
 ---
 

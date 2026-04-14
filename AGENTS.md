@@ -144,23 +144,31 @@ Run `pnpm validate` before pushing to verify: TypeScript compiles, ESLint passes
 ```
 src/
   routes/
-    __root.tsx             — root layout with CSS import
-    index.tsx              — dashboard (current week, next session)
+    __root.tsx             — root layout with CSS import ✅
+    index.tsx              — dashboard (current week, next session) ✅
     onboarding.tsx         — 5-screen onboarding flow ✅
     session/$id.tsx        — workout execution (heart of the app, to be built)
     plan.tsx               — program overview, read-only (to be built)
     feedback/$id.tsx       — post-workout feedback (to be built)
   functions/
     generatePlan.ts        — server fn: calls AI, writes program to DB ✅
+    getDashboardData.ts    — server fn: fetches dashboard state ✅
     logSet.ts              — server fn: writes set_log row
     completeSession.ts     — server fn: writes workout_log, triggers progression check
     adaptWeek.ts           — server fn: weekly AI adaptation call
     swapExercise.ts        — server fn: on-demand exercise swap via AI
   components/
+    DashboardPage.tsx      — main dashboard orchestrator ✅
     PlanGenerationScreen.tsx — loading screen with progress checklist ✅
     StepIndicator.tsx      — progress indicator component ✅
     OptionCard.tsx         — option selection component ✅
     ChipButton.tsx         — chip/button component ✅
+    dashboard/             — dashboard sub-components ✅
+      ProgramHeader.tsx    — program info header ✅
+      NextSessionCard.tsx  — next session details ✅
+      WeekGrid.tsx         — session status grid ✅
+      WeekProgressBar.tsx  — week completion progress ✅
+      ProgramFooter.tsx    — program completion state ✅
     ui/                    — shadcn components (6 installed: Button, Input, Card, Slider, Tabs, Progress)
   types/
     wizard.ts              — wizard types (Goal, Experience, EquipmentPreset, etc.) ✅
@@ -224,6 +232,21 @@ data/                      — static data
 - Onboarding UI uses Tailwind v4 CSS variables (no hardcoded colors)
 - All 5 steps deduplicated into generic `OptionListStep<T>` component where applicable
 - TypeScript strict mode with proper typing throughout
+
+**Phase 5 Status**: ✅ Complete
+
+- `src/components/DashboardPage.tsx` — main orchestrator component with program active/inactive states
+- `src/components/dashboard/` — five focused sub-components with full test coverage:
+  - `ProgramHeader.tsx` — program name, rationale, week counter
+  - `NextSessionCard.tsx` — next session details, exercises, focus label
+  - `WeekGrid.tsx` — session cards with status indicators (completed, next, missed, upcoming) and focus labels
+  - `WeekProgressBar.tsx` — visual progress across the week
+  - `ProgramFooter.tsx` — program completion state and next steps
+- `src/functions/getDashboardData.ts` — server function: fetches active program, current week, sessions, computes dashboard state
+- `src/routes/index.tsx` — refactored to use DashboardPage component (reduced from 142 lines to 104)
+- All dashboard components ship with unit tests (46 tests total across all components)
+- Focus labels replace 3-char abbreviations in WeekGrid for clarity
+- Full type safety end-to-end with DashboardState union type
 
 ---
 

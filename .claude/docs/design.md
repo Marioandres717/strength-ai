@@ -123,6 +123,38 @@ data/                      — static data (Phase 2+)
 - Core dependencies: Drizzle, better-sqlite3, Anthropic SDK, Zustand
 - Directory structure created and ready for Phase 2
 
+**Phase 2 Complete** (2026-04-07):
+
+- Drizzle schema with 7 tables, cascade FKs, JSON columns
+- better-sqlite3 setup with WAL mode and foreign key enforcement
+- Exercise library seeded (31 exercises)
+- Database setup and ready for Phase 3
+
+**Phase 3 Complete** (2026-04-08):
+
+- `lib/ai.ts` with Zod output schemas and three typed async functions
+- `lib/prompts.ts` with system prompts for all AI call types
+- Exercise name resolution (three-tier fuzzy cascade)
+- All AI output validated at runtime via Zod
+- Ready for Phase 4 (Onboarding)
+
+**Phase 4 Complete** (2026-04-10):
+
+- 5-screen onboarding flow (Goal → Equipment → Experience → Schedule → Custom Directives)
+- `generatePlan` server function wired up and tested
+- Full-screen loading UI with progress checklist
+- All 47 onboarding tests passing
+- Ready for Phase 5 (Dashboard)
+
+**Phase 5 Complete** (2026-04-14):
+
+- `DashboardPage` orchestrator component
+- Five sub-components: ProgramHeader, NextSessionCard, WeekGrid, WeekProgressBar, ProgramFooter
+- `getDashboardData` server function for fetching dashboard state
+- Full test coverage across all dashboard components (46 tests)
+- `src/routes/index.tsx` refactored to use DashboardPage
+- Ready for Phase 6 (Workout Execution)
+
 ---
 
 ## 2. Core data models
@@ -398,13 +430,13 @@ Drizzle schema definition in `lib/schema.ts` (7 tables, cascade FKs, JSON column
 
 `lib/ai.ts` with Zod output schemas, three typed async functions (`generatePlan`, `adaptWeek`, `swapExercise`), exercise name resolution (three-tier fuzzy cascade), and per-call logging. `lib/prompts.ts` with system prompts and user-message builder functions. `lib/ai.test.ts` with 34 unit tests + conditional integration test. Zod added as direct dependency; all AI output validated at runtime before reaching the database.
 
-### Phase 4 — Onboarding UI
+### Phase 4 — Onboarding UI ✅ COMPLETE
 
-5-screen onboarding flow that saves to DB. Form validation. Equipment multi-select. Schedule pickers. Custom directives textarea. Plan preview screen with hardcoded dummy data to validate the layout.
+5-screen onboarding flow that saves to DB. Form validation. Equipment multi-select. Schedule pickers. Custom directives textarea. `generatePlan` server function that calls `lib/ai.ts` and stores the parsed plan. All 47 tests passing.
 
-### Phase 5 — AI plan generation wired up
+### Phase 5 — Dashboard ✅ COMPLETE
 
-Build the `generatePlan` server function that calls `lib/ai.ts` and stores the parsed plan. Connect onboarding to real plan generation. Add the plan view screen pulling from DB.
+`DashboardPage` component with five sub-components (ProgramHeader, NextSessionCard, WeekGrid, WeekProgressBar, ProgramFooter). `getDashboardData` server function. Full test coverage (46 tests). Routes index refactored to use DashboardPage.
 
 ### Phase 6 — Workout execution
 
