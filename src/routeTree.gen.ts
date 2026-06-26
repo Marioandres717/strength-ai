@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SessionIdRouteImport } from './routes/session/$id'
+import { Route as FeedbackIdRouteImport } from './routes/feedback/$id'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -28,35 +30,59 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SessionIdRoute = SessionIdRouteImport.update({
+  id: '/session/$id',
+  path: '/session/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedbackIdRoute = FeedbackIdRouteImport.update({
+  id: '/feedback/$id',
+  path: '/feedback/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/onboarding': typeof OnboardingRoute
+  '/feedback/$id': typeof FeedbackIdRoute
+  '/session/$id': typeof SessionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/onboarding': typeof OnboardingRoute
+  '/feedback/$id': typeof FeedbackIdRoute
+  '/session/$id': typeof SessionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/onboarding': typeof OnboardingRoute
+  '/feedback/$id': typeof FeedbackIdRoute
+  '/session/$id': typeof SessionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/onboarding'
+  fullPaths: '/' | '/about' | '/onboarding' | '/feedback/$id' | '/session/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/onboarding'
-  id: '__root__' | '/' | '/about' | '/onboarding'
+  to: '/' | '/about' | '/onboarding' | '/feedback/$id' | '/session/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/onboarding'
+    | '/feedback/$id'
+    | '/session/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   OnboardingRoute: typeof OnboardingRoute
+  FeedbackIdRoute: typeof FeedbackIdRoute
+  SessionIdRoute: typeof SessionIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +108,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/session/$id': {
+      id: '/session/$id'
+      path: '/session/$id'
+      fullPath: '/session/$id'
+      preLoaderRoute: typeof SessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feedback/$id': {
+      id: '/feedback/$id'
+      path: '/feedback/$id'
+      fullPath: '/feedback/$id'
+      preLoaderRoute: typeof FeedbackIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +129,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   OnboardingRoute: OnboardingRoute,
+  FeedbackIdRoute: FeedbackIdRoute,
+  SessionIdRoute: SessionIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

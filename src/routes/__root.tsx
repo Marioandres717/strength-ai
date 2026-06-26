@@ -79,7 +79,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 // Layout: safe to use router hooks — conditionally renders chrome
 function RootLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const bare = pathname === "/onboarding"
+  const bare =
+    pathname === "/onboarding" ||
+    pathname.startsWith("/session/") ||
+    pathname.startsWith("/feedback/")
 
   return (
     <>
