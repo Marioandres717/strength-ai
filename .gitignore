@@ -17,3 +17,4 @@ coverage
 strength.db
 strength.db-shm
 strength.db-wal
+.aider*
