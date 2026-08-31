@@ -8,6 +8,7 @@ import { parseRepRangeLower } from "../../lib/rules"
 // ---------------------------------------------------------------------------
 
 export type SessionPhase = "active_set" | "resting" | "session_complete"
+export type LoggedSetSyncStatus = "pending" | "saved" | "failed"
 
 export interface SessionExercise {
   planned: SelectPlannedExercise
@@ -21,8 +22,18 @@ export interface LoggedSet {
   weightKg: number
   reps: number
   rirActual: number
-  /** null = optimistic (server call in flight); filled once logSet resolves */
   serverSetLogId: string | null
+  syncStatus: LoggedSetSyncStatus
+}
+
+export interface PersistedLoggedSet {
+  setLogId: string
+  plannedExerciseId: string
+  setNumber: number
+  weightKg: number
+  reps: number
+  rirActual: number
+  loggedAt: Date
 }
 
 export interface SessionInitPayload {
@@ -31,6 +42,7 @@ export interface SessionInitPayload {
   programName: string
   exercises: SessionExercise[]
   startedAt: Date
+  persistedSets: PersistedLoggedSet[]
 }
 
 // ---------------------------------------------------------------------------
@@ -69,6 +81,7 @@ interface SessionState {
 
   // Loading guard
   isSubmitting: boolean
+  setSyncError: string | null
 
   // ── Actions ──────────────────────────────────────────────────────────────
 
@@ -78,8 +91,15 @@ interface SessionState {
     weightKg: number
     reps: number
     rirActual: number
-    onPersist: (entry: Omit<LoggedSet, "serverSetLogId">) => Promise<string>
+    onPersist: (
+      entry: Omit<LoggedSet, "serverSetLogId" | "syncStatus">
+    ) => Promise<string>
   }) => Promise<void>
+  retryUnsyncedSets: (params: {
+    onPersist: (
+      entry: Omit<LoggedSet, "serverSetLogId" | "syncStatus">
+    ) => Promise<string>
+  }) => Promise<boolean>
 
   tickTimer: () => void
   adjustTimer: (deltaSeconds: number) => void
@@ -109,6 +129,78 @@ function seedInputs(exercise: SessionExercise) {
     inputReps: lowerReps,
     inputRir: exercise.planned.rirTarget,
   }
+}
+
+function toSetKey(plannedExerciseId: string, setNumber: number) {
+  return `${plannedExerciseId}:${setNumber}`
+}
+
+function updateLoggedSet(
+  loggedSets: LoggedSet[],
+  target: Pick<LoggedSet, "plannedExerciseId" | "setNumber">,
+  updater: (entry: LoggedSet) => LoggedSet
+) {
+  return loggedSets.map((entry) =>
+    entry.plannedExerciseId === target.plannedExerciseId &&
+    entry.setNumber === target.setNumber
+      ? updater(entry)
+      : entry
+  )
+}
+
+function upsertLoggedSet(loggedSets: LoggedSet[], nextEntry: LoggedSet) {
+  const existingIndex = loggedSets.findIndex(
+    (entry) =>
+      entry.plannedExerciseId === nextEntry.plannedExerciseId &&
+      entry.setNumber === nextEntry.setNumber
+  )
+
+  if (existingIndex === -1) {
+    return [...loggedSets, nextEntry]
+  }
+
+  const nextLoggedSets = [...loggedSets]
+  nextLoggedSets[existingIndex] = nextEntry
+  return nextLoggedSets
+}
+
+function dedupePersistedSets(persistedSets: PersistedLoggedSet[]) {
+  const deduped = new Map<string, PersistedLoggedSet>()
+
+  for (const entry of persistedSets) {
+    const key = toSetKey(entry.plannedExerciseId, entry.setNumber)
+    const existing = deduped.get(key)
+    if (!existing || entry.loggedAt.getTime() >= existing.loggedAt.getTime()) {
+      deduped.set(key, entry)
+    }
+  }
+
+  return [...deduped.values()]
+}
+
+function findNextUnloggedSet(
+  exercises: SessionExercise[],
+  loggedSets: LoggedSet[]
+): { exerciseIndex: number; setNumber: number } | null {
+  const savedKeys = new Set(
+    loggedSets
+      .filter((entry) => entry.syncStatus === "saved")
+      .map((entry) => toSetKey(entry.plannedExerciseId, entry.setNumber))
+  )
+
+  for (const [exerciseIndex, exercise] of exercises.entries()) {
+    for (
+      let setNumber = 1;
+      setNumber <= exercise.planned.sets;
+      setNumber += 1
+    ) {
+      if (!savedKeys.has(toSetKey(exercise.planned.id, setNumber))) {
+        return { exerciseIndex, setNumber }
+      }
+    }
+  }
+
+  return null
 }
 
 /** Determine the next state after a rest ends (timer hits 0 or skip). */
@@ -161,6 +253,7 @@ const EMPTY_STATE = {
   loggedSets: [] as LoggedSet[],
   startedAt: new Date(),
   isSubmitting: false,
+  setSyncError: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +265,23 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
 
   initSession: (payload) => {
     const firstExercise = payload.exercises[0]
+    const loggedSets = dedupePersistedSets(payload.persistedSets).map(
+      (entry) => ({
+        plannedExerciseId: entry.plannedExerciseId,
+        setNumber: entry.setNumber,
+        weightKg: entry.weightKg,
+        reps: entry.reps,
+        rirActual: entry.rirActual,
+        serverSetLogId: entry.setLogId,
+        syncStatus: "saved" as const,
+      })
+    )
+    const nextUnloggedSet = findNextUnloggedSet(payload.exercises, loggedSets)
+    const activeExercise =
+      nextUnloggedSet != null
+        ? payload.exercises[nextUnloggedSet.exerciseIndex]
+        : firstExercise
+
     set({
       ...EMPTY_STATE,
       workoutLogId: payload.workoutLogId,
@@ -179,8 +289,11 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       programName: payload.programName,
       exercises: payload.exercises,
       startedAt: payload.startedAt,
-      phase: "active_set",
-      ...(firstExercise ? seedInputs(firstExercise) : {}),
+      loggedSets,
+      phase: nextUnloggedSet == null ? "session_complete" : "active_set",
+      currentExerciseIndex: nextUnloggedSet?.exerciseIndex ?? 0,
+      currentSetNumber: nextUnloggedSet?.setNumber ?? 1,
+      ...(activeExercise ? seedInputs(activeExercise) : {}),
     })
   },
 
@@ -202,16 +315,25 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       reps,
       rirActual,
       serverSetLogId: null,
+      syncStatus: "pending",
     }
+    const existingEntry = state.loggedSets.find(
+      (entry) =>
+        entry.plannedExerciseId === newEntry.plannedExerciseId &&
+        entry.setNumber === newEntry.setNumber
+    )
 
-    // Optimistically append the set
-    set({ isSubmitting: true, loggedSets: [...state.loggedSets, newEntry] })
+    if (existingEntry?.syncStatus === "saved") return
+
+    const nextLoggedSets = upsertLoggedSet(state.loggedSets, newEntry)
 
     if (isSessionComplete) {
-      // No rest timer — go straight to session_complete
-      set({ phase: "session_complete", isSubmitting: false })
+      set({
+        isSubmitting: true,
+        loggedSets: nextLoggedSets,
+        setSyncError: null,
+      })
     } else {
-      // Start rest timer
       const restSeconds = currentExercise.planned.restSeconds
       const intervalId = setInterval(() => {
         get().tickTimer()
@@ -223,10 +345,11 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
         restSecondsTotal: restSeconds,
         restIntervalId: intervalId,
         isSubmitting: false,
+        loggedSets: nextLoggedSets,
+        setSyncError: null,
       })
     }
 
-    // Persist to server in the background
     try {
       const setLogId = await onPersist({
         plannedExerciseId: newEntry.plannedExerciseId,
@@ -237,17 +360,100 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       })
 
       // Fill in the server-assigned ID
+      set((s) => {
+        const loggedSets = updateLoggedSet(s.loggedSets, newEntry, (entry) => ({
+          ...entry,
+          serverSetLogId: setLogId,
+          syncStatus: "saved",
+        }))
+
+        return {
+          loggedSets,
+          phase: isSessionComplete ? "session_complete" : s.phase,
+          isSubmitting: false,
+          setSyncError: null,
+        }
+      })
+    } catch {
       set((s) => ({
-        loggedSets: s.loggedSets.map((ls) =>
-          ls.plannedExerciseId === newEntry.plannedExerciseId &&
-          ls.setNumber === newEntry.setNumber
-            ? { ...ls, serverSetLogId: setLogId }
-            : ls
+        loggedSets: updateLoggedSet(s.loggedSets, newEntry, (entry) => ({
+          ...entry,
+          syncStatus: "failed",
+        })),
+        isSubmitting: false,
+        setSyncError: isSessionComplete
+          ? "Failed to save your final set. Retry to finish the workout."
+          : s.setSyncError,
+      }))
+    }
+  },
+
+  retryUnsyncedSets: async ({ onPersist }) => {
+    const state = get()
+    if (state.isSubmitting) return false
+
+    const unsyncedSets = state.loggedSets.filter(
+      (entry) => entry.syncStatus !== "saved"
+    )
+
+    if (unsyncedSets.length === 0) {
+      return true
+    }
+
+    set({ isSubmitting: true, setSyncError: null })
+
+    let allSucceeded = true
+
+    for (const entry of unsyncedSets) {
+      set((currentState) => ({
+        loggedSets: updateLoggedSet(
+          currentState.loggedSets,
+          entry,
+          (current) => ({
+            ...current,
+            syncStatus: "pending",
+          })
         ),
       }))
-    } catch {
-      // Leave serverSetLogId as null to signal retry needed
+
+      try {
+        const setLogId = await onPersist({
+          plannedExerciseId: entry.plannedExerciseId,
+          setNumber: entry.setNumber,
+          weightKg: entry.weightKg,
+          reps: entry.reps,
+          rirActual: entry.rirActual,
+        })
+
+        set((currentState) => ({
+          loggedSets: updateLoggedSet(
+            currentState.loggedSets,
+            entry,
+            (current) => ({
+              ...current,
+              serverSetLogId: setLogId,
+              syncStatus: "saved",
+            })
+          ),
+        }))
+      } catch {
+        allSucceeded = false
+        set((currentState) => ({
+          loggedSets: updateLoggedSet(
+            currentState.loggedSets,
+            entry,
+            (current) => ({
+              ...current,
+              syncStatus: "failed",
+            })
+          ),
+        }))
+      }
     }
+
+    set({ isSubmitting: false })
+
+    return allSucceeded
   },
 
   tickTimer: () => {

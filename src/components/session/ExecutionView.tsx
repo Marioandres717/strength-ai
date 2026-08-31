@@ -29,27 +29,24 @@ export function ExecutionView({
   const currentExercise = exercises[currentExerciseIndex]
   const completedExercises = exercises.slice(0, currentExerciseIndex)
   const upcomingExercises = exercises.slice(currentExerciseIndex + 1)
-
-  // Count unsaved sets to show indicator
-  const hasPendingSets = loggedSets.some((s) => s.serverSetLogId === null)
+  const hasPendingSets = loggedSets.some((set) => set.syncStatus === "pending")
+  const hasFailedSets = loggedSets.some((set) => set.syncStatus === "failed")
 
   return (
     <div className="pb-safe-bottom flex flex-1 flex-col overflow-y-auto">
-      {/* Completed exercises */}
       {completedExercises.length > 0 && (
         <div className="border-border border-b px-5">
-          {completedExercises.map((ex, i) => (
+          {completedExercises.map((exercise, index) => (
             <ExerciseRow
-              key={ex.planned.id}
-              sessionExercise={ex}
+              key={exercise.planned.id}
+              sessionExercise={exercise}
               status="completed"
-              index={i}
+              index={index}
             />
           ))}
         </div>
       )}
 
-      {/* Current exercise card */}
       <div className="border-accent bg-surface mx-4 mt-4 rounded-2xl border p-5">
         <p className="text-muted mb-1 text-xs font-semibold">
           Set {currentSetNumber} of {currentExercise.planned.sets}
@@ -58,7 +55,6 @@ export function ExecutionView({
           {currentExercise.exercise.name}
         </h2>
 
-        {/* Coach note */}
         {currentExercise.planned.coachNote && (
           <div className="bg-accent/10 border-accent/20 mb-4 rounded-xl border px-4 py-2.5">
             <div className="flex items-start gap-2">
@@ -83,7 +79,6 @@ export function ExecutionView({
           </div>
         )}
 
-        {/* Target stats */}
         <div className="mb-5 flex gap-3">
           <StatChip
             label="Target Load"
@@ -100,7 +95,6 @@ export function ExecutionView({
           />
         </div>
 
-        {/* Rest timer */}
         <RestTimer
           secondsRemaining={restSecondsRemaining}
           secondsTotal={restSecondsTotal}
@@ -109,14 +103,16 @@ export function ExecutionView({
         />
       </div>
 
-      {/* Unsaved sets warning */}
-      {hasPendingSets && (
+      {(hasPendingSets || hasFailedSets) && (
         <div className="mx-4 mt-3 rounded-xl bg-amber-500/10 px-4 py-2.5">
-          <p className="text-xs text-amber-400">Some sets are still syncing…</p>
+          <p className="text-xs text-amber-400">
+            {hasFailedSets
+              ? "Some sets need to sync before workout completion."
+              : "Some sets are still syncing..."}
+          </p>
         </div>
       )}
 
-      {/* CTA */}
       <div className="px-4 pt-4">
         <button
           type="button"
@@ -127,7 +123,6 @@ export function ExecutionView({
         </button>
       </div>
 
-      {/* Upcoming exercises */}
       {upcomingExercises.length > 0 && (
         <div className="mt-6 px-5">
           <div className="mb-2 flex items-center justify-between">
@@ -139,12 +134,12 @@ export function ExecutionView({
             </p>
           </div>
           <div className="border-border divide-border divide-y rounded-2xl border">
-            {upcomingExercises.map((ex, i) => (
-              <div key={ex.planned.id} className="px-4">
+            {upcomingExercises.map((exercise, index) => (
+              <div key={exercise.planned.id} className="px-4">
                 <ExerciseRow
-                  sessionExercise={ex}
+                  sessionExercise={exercise}
                   status="upcoming"
-                  index={currentExerciseIndex + 1 + i}
+                  index={currentExerciseIndex + 1 + index}
                 />
               </div>
             ))}

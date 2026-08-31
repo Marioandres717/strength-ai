@@ -11,6 +11,7 @@ interface SetDetailViewProps {
   inputReps: number
   inputRir: number
   isSubmitting: boolean
+  errorMessage: string | null
   onBack: () => void
   onWeightChange: (v: number) => void
   onRepsChange: (v: number) => void
@@ -28,6 +29,7 @@ export function SetDetailView({
   inputReps,
   inputRir,
   isSubmitting,
+  errorMessage,
   onBack,
   onWeightChange,
   onRepsChange,
@@ -188,6 +190,12 @@ export function SetDetailView({
             />
           </div>
         </div>
+
+        {errorMessage && (
+          <div className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3">
+            <p className="text-sm text-red-300">{errorMessage}</p>
+          </div>
+        )}
 
         {/* Rest preview */}
         {!isLastSet && (

@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start"
 import { and, desc, eq, isNull } from "drizzle-orm"
+import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import { z } from "zod"
 import { db } from "../../lib/db"
+import type * as schema from "../../lib/schema"
 import {
   exercise,
   plannedExercise,
@@ -16,6 +18,7 @@ import type {
   SelectProgram,
   SelectSessionTemplate,
 } from "../../lib/schema"
+
 export interface PriorPerformance {
   weightKg: number
   reps: number
@@ -29,143 +32,219 @@ export interface SessionExerciseRow {
   priorPerformance: PriorPerformance | null
 }
 
+export interface PersistedSetLog {
+  setLogId: string
+  plannedExerciseId: string
+  setNumber: number
+  weightKg: number
+  reps: number
+  rirActual: number
+  loggedAt: Date
+}
+
 export interface GetSessionDataResult {
   sessionTemplate: SelectSessionTemplate
   program: SelectProgram
   exercises: SessionExerciseRow[]
   workoutLogId: string
   startedAt: Date
+  persistedSets: PersistedSetLog[]
 }
 
 const inputSchema = z.object({
   sessionTemplateId: z.string().min(1),
 })
 
-export const getSessionDataFn = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) => inputSchema.parse(data))
-  .handler(async ({ data }): Promise<GetSessionDataResult> => {
-    const { sessionTemplateId } = data
+function toIsoDate(value: Date | number | null) {
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
 
-    // 1. Fetch session template
-    const templates = await db
-      .select()
-      .from(sessionTemplate)
-      .where(eq(sessionTemplate.id, sessionTemplateId))
-      .limit(1)
+  if (typeof value === "number") {
+    return new Date(value * 1000).toISOString()
+  }
 
-    if (templates.length === 0) {
-      throw new Error(`Session template not found: ${sessionTemplateId}`)
+  return new Date().toISOString()
+}
+
+function dedupePersistedSets(entries: PersistedSetLog[]) {
+  const deduped = new Map<string, PersistedSetLog>()
+
+  for (const entry of entries) {
+    const key = `${entry.plannedExerciseId}:${entry.setNumber}`
+    const existing = deduped.get(key)
+
+    if (!existing || entry.loggedAt.getTime() >= existing.loggedAt.getTime()) {
+      deduped.set(key, entry)
     }
-    const tmpl = templates[0]
+  }
 
-    // 2. Fetch program
-    const programs = await db
-      .select()
-      .from(program)
-      .where(eq(program.id, tmpl.programId))
-      .limit(1)
+  return [...deduped.values()]
+}
 
-    if (programs.length === 0) {
-      throw new Error(`Program not found: ${tmpl.programId}`)
-    }
-    const prog = programs[0]
+export async function getSessionDataOperation(
+  database: BetterSQLite3Database<typeof schema>,
+  sessionTemplateId: string
+): Promise<GetSessionDataResult> {
+  const templates = await database
+    .select()
+    .from(sessionTemplate)
+    .where(eq(sessionTemplate.id, sessionTemplateId))
+    .limit(1)
 
-    // 3. Fetch planned exercises joined to exercise library
-    const exerciseRows = await db
-      .select({ planned: plannedExercise, exercise: exercise })
-      .from(plannedExercise)
-      .innerJoin(exercise, eq(plannedExercise.exerciseId, exercise.id))
-      .where(eq(plannedExercise.sessionTemplateId, sessionTemplateId))
-      .orderBy(plannedExercise.orderIndex)
+  if (templates.length === 0) {
+    throw new Error(`Session template not found: ${sessionTemplateId}`)
+  }
 
-    // 4. For each exercise, fetch prior performance (last completed session's last set)
-    const exercises: SessionExerciseRow[] = await Promise.all(
-      exerciseRows.map(async (row) => {
-        // Find the most recent set_log for this planned exercise in any completed workout
-        const priorSets = await db
-          .select({
-            weightKg: setLog.weightKg,
-            reps: setLog.reps,
-            rirActual: setLog.rirActual,
-            completedAt: workoutLog.completedAt,
-          })
-          .from(setLog)
-          .innerJoin(workoutLog, eq(setLog.workoutLogId, workoutLog.id))
-          .where(
-            and(
-              eq(setLog.plannedExerciseId, row.planned.id)
-              // Only completed sessions
-              // We filter completedAt != null in JS below since isNotNull isn't needed
-            )
-          )
-          .orderBy(desc(workoutLog.completedAt), desc(setLog.setNumber))
-          .limit(10) // fetch a few to find the right completed session's last set
+  const tmpl = templates[0]
 
-        // Filter to only completed sessions and take the first (most recent) set
-        const completedSet = priorSets.find((s) => s.completedAt != null)
+  const programs = await database
+    .select()
+    .from(program)
+    .where(eq(program.id, tmpl.programId))
+    .limit(1)
 
-        const priorPerformance: PriorPerformance | null = completedSet
+  if (programs.length === 0) {
+    throw new Error(`Program not found: ${tmpl.programId}`)
+  }
+
+  const prog = programs[0]
+
+  const exerciseRows = await database
+    .select({ planned: plannedExercise, exercise: exercise })
+    .from(plannedExercise)
+    .innerJoin(exercise, eq(plannedExercise.exerciseId, exercise.id))
+    .where(eq(plannedExercise.sessionTemplateId, sessionTemplateId))
+    .orderBy(plannedExercise.orderIndex)
+
+  const exercises: SessionExerciseRow[] = await Promise.all(
+    exerciseRows.map(async (row) => {
+      const priorSets = await database
+        .select({
+          weightKg: setLog.weightKg,
+          reps: setLog.reps,
+          rirActual: setLog.rirActual,
+          completedAt: workoutLog.completedAt,
+        })
+        .from(setLog)
+        .innerJoin(workoutLog, eq(setLog.workoutLogId, workoutLog.id))
+        .where(eq(setLog.plannedExerciseId, row.planned.id))
+        .orderBy(desc(workoutLog.completedAt), desc(setLog.setNumber))
+        .limit(10)
+
+      const completedSet = priorSets.find((set) => set.completedAt != null)
+
+      return {
+        planned: row.planned,
+        exercise: row.exercise,
+        priorPerformance: completedSet
           ? {
               weightKg: completedSet.weightKg,
               reps: completedSet.reps,
               rirActual: completedSet.rirActual,
-              date:
-                completedSet.completedAt instanceof Date
-                  ? completedSet.completedAt.toISOString()
-                  : completedSet.completedAt != null
-                    ? new Date(
-                        (completedSet.completedAt as unknown as number) * 1000
-                      ).toISOString()
-                    : new Date().toISOString(),
+              date: toIsoDate(completedSet.completedAt),
             }
-          : null
+          : null,
+      }
+    })
+  )
 
-        return {
-          planned: row.planned,
-          exercise: row.exercise,
-          priorPerformance,
-        }
-      })
+  const inProgressLogs = await database
+    .select()
+    .from(workoutLog)
+    .where(
+      and(
+        eq(workoutLog.sessionTemplateId, sessionTemplateId),
+        isNull(workoutLog.completedAt)
+      )
+    )
+    .orderBy(desc(workoutLog.startedAt))
+    .limit(1)
+
+  let workoutLogId: string
+  let startedAt: Date
+
+  if (inProgressLogs.length > 0) {
+    const existing = inProgressLogs[0]
+    workoutLogId = existing.id
+    startedAt =
+      existing.startedAt instanceof Date
+        ? existing.startedAt
+        : new Date(existing.startedAt * 1000)
+  } else {
+    workoutLogId = crypto.randomUUID()
+    startedAt = new Date()
+
+    await database.insert(workoutLog).values({
+      id: workoutLogId,
+      sessionTemplateId,
+      startedAt,
+    })
+  }
+
+  const persistedSetRows = await database
+    .select({
+      setLogId: setLog.id,
+      plannedExerciseId: setLog.plannedExerciseId,
+      setNumber: setLog.setNumber,
+      weightKg: setLog.weightKg,
+      reps: setLog.reps,
+      rirActual: setLog.rirActual,
+      loggedAt: setLog.loggedAt,
+      orderIndex: plannedExercise.orderIndex,
+    })
+    .from(setLog)
+    .innerJoin(
+      plannedExercise,
+      eq(setLog.plannedExerciseId, plannedExercise.id)
+    )
+    .where(eq(setLog.workoutLogId, workoutLogId))
+    .orderBy(
+      plannedExercise.orderIndex,
+      setLog.setNumber,
+      desc(setLog.loggedAt)
     )
 
-    // 5. Reuse in-progress workout_log or create a new one
-    const inProgressLogs = await db
-      .select()
-      .from(workoutLog)
-      .where(
-        and(
-          eq(workoutLog.sessionTemplateId, sessionTemplateId),
-          isNull(workoutLog.completedAt)
-        )
-      )
-      .orderBy(desc(workoutLog.startedAt))
-      .limit(1)
+  const persistedSets = dedupePersistedSets(
+    persistedSetRows.map((row) => ({
+      setLogId: row.setLogId,
+      plannedExerciseId: row.plannedExerciseId,
+      setNumber: row.setNumber,
+      weightKg: row.weightKg,
+      reps: row.reps,
+      rirActual: row.rirActual ?? 0,
+      loggedAt:
+        row.loggedAt instanceof Date ? row.loggedAt : new Date(row.loggedAt),
+    }))
+  ).sort((left, right) => {
+    const leftExercise = exerciseRows.find(
+      (row) => row.planned.id === left.plannedExerciseId
+    )
+    const rightExercise = exerciseRows.find(
+      (row) => row.planned.id === right.plannedExerciseId
+    )
 
-    let workoutLogId: string
-    let startedAt: Date
-
-    if (inProgressLogs.length > 0) {
-      const existing = inProgressLogs[0]
-      workoutLogId = existing.id
-      startedAt =
-        existing.startedAt instanceof Date
-          ? existing.startedAt
-          : new Date((existing.startedAt as number) * 1000)
-    } else {
-      workoutLogId = crypto.randomUUID()
-      startedAt = new Date()
-      await db.insert(workoutLog).values({
-        id: workoutLogId,
-        sessionTemplateId,
-        startedAt,
-      })
+    if (!leftExercise || !rightExercise) {
+      return left.setNumber - right.setNumber
     }
 
-    return {
-      sessionTemplate: tmpl,
-      program: prog,
-      exercises,
-      workoutLogId,
-      startedAt,
+    if (leftExercise.planned.orderIndex !== rightExercise.planned.orderIndex) {
+      return leftExercise.planned.orderIndex - rightExercise.planned.orderIndex
     }
+
+    return left.setNumber - right.setNumber
   })
+
+  return {
+    sessionTemplate: tmpl,
+    program: prog,
+    exercises,
+    workoutLogId,
+    startedAt,
+    persistedSets,
+  }
+}
+
+export const getSessionDataFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) => inputSchema.parse(data))
+  .handler(({ data }) => getSessionDataOperation(db, data.sessionTemplateId))

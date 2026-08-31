@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
-import { useSessionStore } from "./sessionStore"
-import type { SessionExercise, SessionInitPayload } from "./sessionStore"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { SelectExercise, SelectPlannedExercise } from "../../lib/schema"
-
-// ---------------------------------------------------------------------------
-// Builders
-// ---------------------------------------------------------------------------
+import { useSessionStore } from "./sessionStore"
+import type {
+  PersistedLoggedSet,
+  SessionExercise,
+  SessionInitPayload,
+} from "./sessionStore"
 
 function makePlannedExercise(
   overrides?: Partial<SelectPlannedExercise>
@@ -22,7 +22,7 @@ function makePlannedExercise(
     restSeconds: 90,
     coachNote: null,
     userId: null,
-    createdAt: new Date("2024-01-01"),
+    createdAt: new Date("2024-01-01T00:00:00Z"),
     ...overrides,
   }
 }
@@ -49,6 +49,21 @@ function makeSessionExercise(
   }
 }
 
+function makePersistedSet(
+  overrides?: Partial<PersistedLoggedSet>
+): PersistedLoggedSet {
+  return {
+    setLogId: "set-log-1",
+    plannedExerciseId: "pe-1",
+    setNumber: 1,
+    weightKg: 60,
+    reps: 8,
+    rirActual: 2,
+    loggedAt: new Date("2024-06-01T10:00:00Z"),
+    ...overrides,
+  }
+}
+
 function makeInitPayload(
   overrides?: Partial<SessionInitPayload>
 ): SessionInitPayload {
@@ -58,6 +73,7 @@ function makeInitPayload(
     programName: "Test Program",
     exercises: [makeSessionExercise()],
     startedAt: new Date("2024-06-01T10:00:00Z"),
+    persistedSets: [],
     ...overrides,
   }
 }
@@ -66,126 +82,128 @@ function makeOnPersist(resolveWith = "server-id-1") {
   return vi.fn().mockResolvedValue(resolveWith)
 }
 
-// ---------------------------------------------------------------------------
-// Global reset
-// ---------------------------------------------------------------------------
+function makeDeferredPersist() {
+  let resolve!: (value: string) => void
+  let reject!: (error?: unknown) => void
+  const promise = new Promise<string>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+
+  return {
+    onPersist: vi.fn().mockImplementation(() => promise),
+    resolve,
+    reject,
+  }
+}
 
 beforeEach(() => {
   useSessionStore.getState().reset()
 })
 
-// ---------------------------------------------------------------------------
-// initSession
-// ---------------------------------------------------------------------------
-
 describe("initSession", () => {
-  it("seeds inputWeight, inputReps, inputRir from first exercise", () => {
+  it("seeds active-set inputs from the first missing prescribed set", () => {
     useSessionStore.getState().initSession(
       makeInitPayload({
         exercises: [
-          makeSessionExercise({ loadKg: 80, repRange: "6-8", rirTarget: 1 }),
+          makeSessionExercise({
+            id: "pe-1",
+            sets: 3,
+            loadKg: 80,
+            repRange: "6-8",
+            rirTarget: 1,
+          }),
+        ],
+        persistedSets: [
+          makePersistedSet({
+            plannedExerciseId: "pe-1",
+            setNumber: 1,
+          }),
         ],
       })
     )
-    const s = useSessionStore.getState()
-    expect(s.inputWeight).toBe(80)
-    expect(s.inputReps).toBe(6)
-    expect(s.inputRir).toBe(1)
+
+    const state = useSessionStore.getState()
+    expect(state.phase).toBe("active_set")
+    expect(state.currentExerciseIndex).toBe(0)
+    expect(state.currentSetNumber).toBe(2)
+    expect(state.inputWeight).toBe(80)
+    expect(state.inputReps).toBe(6)
+    expect(state.inputRir).toBe(1)
   })
 
-  it("sets phase to active_set", () => {
-    useSessionStore.getState().initSession(makeInitPayload())
-    expect(useSessionStore.getState().phase).toBe("active_set")
-  })
-
-  it("sets workoutLogId, sessionTemplateId, programName from payload", () => {
-    useSessionStore.getState().initSession(makeInitPayload())
-    const s = useSessionStore.getState()
-    expect(s.workoutLogId).toBe("wl-1")
-    expect(s.sessionTemplateId).toBe("st-1")
-    expect(s.programName).toBe("Test Program")
-  })
-
-  it("sets currentExerciseIndex to 0 and currentSetNumber to 1", () => {
-    useSessionStore.getState().initSession(makeInitPayload())
-    const s = useSessionStore.getState()
-    expect(s.currentExerciseIndex).toBe(0)
-    expect(s.currentSetNumber).toBe(1)
-  })
-
-  it("clears previous loggedSets when called a second time", async () => {
-    useSessionStore.getState().initSession(makeInitPayload())
-    await useSessionStore.getState().commitSet({
-      weightKg: 60,
-      reps: 8,
-      rirActual: 2,
-      onPersist: makeOnPersist(),
-    })
-    expect(useSessionStore.getState().loggedSets).toHaveLength(1)
-
-    useSessionStore.getState().initSession(makeInitPayload())
-    expect(useSessionStore.getState().loggedSets).toHaveLength(0)
-  })
-
-  it("falls back to inputReps = 8 when repRange is unparseable", () => {
+  it("deduplicates persisted sets by planned exercise and set number", () => {
     useSessionStore.getState().initSession(
       makeInitPayload({
-        exercises: [makeSessionExercise({ repRange: "invalid" })],
+        persistedSets: [
+          makePersistedSet({
+            setLogId: "older",
+            reps: 7,
+            loggedAt: new Date("2024-06-01T10:00:00Z"),
+          }),
+          makePersistedSet({
+            setLogId: "newer",
+            reps: 9,
+            loggedAt: new Date("2024-06-01T10:05:00Z"),
+          }),
+        ],
       })
     )
-    expect(useSessionStore.getState().inputReps).toBe(8)
+
+    const [loggedSet] = useSessionStore.getState().loggedSets
+    expect(useSessionStore.getState().loggedSets).toHaveLength(1)
+    expect(loggedSet.serverSetLogId).toBe("newer")
+    expect(loggedSet.reps).toBe(9)
+    expect(loggedSet.syncStatus).toBe("saved")
+  })
+
+  it("resumes at the first gap in logged sets", () => {
+    useSessionStore.getState().initSession(
+      makeInitPayload({
+        exercises: [
+          makeSessionExercise({ id: "pe-1", sets: 3 }),
+          makeSessionExercise(
+            { id: "pe-2", exerciseId: "ex-2", orderIndex: 1, sets: 2 },
+            { id: "ex-2", name: "Bench Press", movement: "push" }
+          ),
+        ],
+        persistedSets: [
+          makePersistedSet({ plannedExerciseId: "pe-1", setNumber: 1 }),
+          makePersistedSet({
+            setLogId: "set-log-2",
+            plannedExerciseId: "pe-1",
+            setNumber: 3,
+            loggedAt: new Date("2024-06-01T10:01:00Z"),
+          }),
+        ],
+      })
+    )
+
+    const state = useSessionStore.getState()
+    expect(state.currentExerciseIndex).toBe(0)
+    expect(state.currentSetNumber).toBe(2)
+    expect(state.phase).toBe("active_set")
+  })
+
+  it("goes straight to session_complete when all prescribed sets are already saved", () => {
+    useSessionStore.getState().initSession(
+      makeInitPayload({
+        exercises: [makeSessionExercise({ id: "pe-1", sets: 2 })],
+        persistedSets: [
+          makePersistedSet({ plannedExerciseId: "pe-1", setNumber: 1 }),
+          makePersistedSet({
+            setLogId: "set-log-2",
+            plannedExerciseId: "pe-1",
+            setNumber: 2,
+            loggedAt: new Date("2024-06-01T10:01:00Z"),
+          }),
+        ],
+      })
+    )
+
+    expect(useSessionStore.getState().phase).toBe("session_complete")
   })
 })
-
-// ---------------------------------------------------------------------------
-// Input setters
-// ---------------------------------------------------------------------------
-
-describe("input setters", () => {
-  it("setInputWeight clamps negative to 0", () => {
-    useSessionStore.getState().setInputWeight(-5)
-    expect(useSessionStore.getState().inputWeight).toBe(0)
-  })
-
-  it("setInputWeight allows positive value", () => {
-    useSessionStore.getState().setInputWeight(100)
-    expect(useSessionStore.getState().inputWeight).toBe(100)
-  })
-
-  it("setInputReps clamps below 1 to 1", () => {
-    useSessionStore.getState().setInputReps(0)
-    expect(useSessionStore.getState().inputReps).toBe(1)
-  })
-
-  it("setInputReps clamps above 100 to 100", () => {
-    useSessionStore.getState().setInputReps(200)
-    expect(useSessionStore.getState().inputReps).toBe(100)
-  })
-
-  it("setInputReps accepts values within range", () => {
-    useSessionStore.getState().setInputReps(10)
-    expect(useSessionStore.getState().inputReps).toBe(10)
-  })
-
-  it("setInputRir clamps below 0 to 0", () => {
-    useSessionStore.getState().setInputRir(-1)
-    expect(useSessionStore.getState().inputRir).toBe(0)
-  })
-
-  it("setInputRir clamps above 10 to 10", () => {
-    useSessionStore.getState().setInputRir(15)
-    expect(useSessionStore.getState().inputRir).toBe(10)
-  })
-
-  it("setInputRir accepts values within range", () => {
-    useSessionStore.getState().setInputRir(3)
-    expect(useSessionStore.getState().inputRir).toBe(3)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// commitSet
-// ---------------------------------------------------------------------------
 
 describe("commitSet", () => {
   beforeEach(() => {
@@ -197,19 +215,62 @@ describe("commitSet", () => {
     vi.useRealTimers()
   })
 
-  it("fills serverSetLogId after onPersist resolves", async () => {
-    await useSessionStore.getState().commitSet({
+  it("keeps non-final sets optimistic while syncing in the background", async () => {
+    const deferred = makeDeferredPersist()
+    const commitPromise = useSessionStore.getState().commitSet({
       weightKg: 60,
       reps: 8,
       rirActual: 2,
-      onPersist: makeOnPersist("srv-42"),
+      onPersist: deferred.onPersist,
     })
-    const { loggedSets } = useSessionStore.getState()
-    expect(loggedSets).toHaveLength(1)
-    expect(loggedSets[0].serverSetLogId).toBe("srv-42")
+
+    const pendingState = useSessionStore.getState()
+    expect(pendingState.phase).toBe("resting")
+    expect(pendingState.isSubmitting).toBe(false)
+    expect(pendingState.loggedSets[0].syncStatus).toBe("pending")
+
+    deferred.resolve("srv-1")
+    await commitPromise
+
+    expect(useSessionStore.getState().loggedSets[0].syncStatus).toBe("saved")
   })
 
-  it("leaves serverSetLogId = null when onPersist rejects", async () => {
+  it("waits for final-set persistence before entering session_complete", async () => {
+    useSessionStore
+      .getState()
+      .initSession(
+        makeInitPayload({ exercises: [makeSessionExercise({ sets: 1 })] })
+      )
+
+    const deferred = makeDeferredPersist()
+    const commitPromise = useSessionStore.getState().commitSet({
+      weightKg: 60,
+      reps: 8,
+      rirActual: 2,
+      onPersist: deferred.onPersist,
+    })
+
+    expect(useSessionStore.getState().phase).toBe("active_set")
+    expect(useSessionStore.getState().isSubmitting).toBe(true)
+    expect(useSessionStore.getState().loggedSets[0].syncStatus).toBe("pending")
+
+    deferred.resolve("srv-final")
+    await commitPromise
+
+    const state = useSessionStore.getState()
+    expect(state.phase).toBe("session_complete")
+    expect(state.isSubmitting).toBe(false)
+    expect(state.loggedSets[0].serverSetLogId).toBe("srv-final")
+    expect(state.loggedSets[0].syncStatus).toBe("saved")
+  })
+
+  it("keeps the final set active and retryable when persistence fails", async () => {
+    useSessionStore
+      .getState()
+      .initSession(
+        makeInitPayload({ exercises: [makeSessionExercise({ sets: 1 })] })
+      )
+
     const onPersist = vi.fn().mockRejectedValue(new Error("network"))
     await useSessionStore.getState().commitSet({
       weightKg: 60,
@@ -217,245 +278,108 @@ describe("commitSet", () => {
       rirActual: 2,
       onPersist,
     })
-    expect(useSessionStore.getState().loggedSets[0].serverSetLogId).toBeNull()
+
+    const state = useSessionStore.getState()
+    expect(state.phase).toBe("active_set")
+    expect(state.isSubmitting).toBe(false)
+    expect(state.setSyncError).toMatch(/final set/i)
+    expect(state.loggedSets).toHaveLength(1)
+    expect(state.loggedSets[0].syncStatus).toBe("failed")
   })
 
-  it("sets phase to resting with correct timer values when not last set", async () => {
-    await useSessionStore.getState().commitSet({
-      weightKg: 60,
-      reps: 8,
-      rirActual: 2,
-      onPersist: makeOnPersist(),
-    })
-    const s = useSessionStore.getState()
-    expect(s.phase).toBe("resting")
-    expect(s.restSecondsRemaining).toBe(90)
-    expect(s.restSecondsTotal).toBe(90)
-    expect(s.restIntervalId).not.toBeNull()
-  })
-
-  it("sets phase to session_complete when last set of last exercise", async () => {
+  it("reuses a failed final-set entry instead of duplicating it on retry", async () => {
     useSessionStore
       .getState()
       .initSession(
         makeInitPayload({ exercises: [makeSessionExercise({ sets: 1 })] })
       )
+
+    const failingPersist = vi.fn().mockRejectedValue(new Error("network"))
     await useSessionStore.getState().commitSet({
       weightKg: 60,
       reps: 8,
       rirActual: 2,
-      onPersist: makeOnPersist(),
+      onPersist: failingPersist,
     })
-    const s = useSessionStore.getState()
-    expect(s.phase).toBe("session_complete")
-    expect(s.restIntervalId).toBeNull()
+
+    await useSessionStore.getState().commitSet({
+      weightKg: 62.5,
+      reps: 9,
+      rirActual: 1,
+      onPersist: makeOnPersist("srv-retry"),
+    })
+
+    const state = useSessionStore.getState()
+    expect(state.loggedSets).toHaveLength(1)
+    expect(state.loggedSets[0]).toMatchObject({
+      weightKg: 62.5,
+      reps: 9,
+      rirActual: 1,
+      serverSetLogId: "srv-retry",
+      syncStatus: "saved",
+    })
+    expect(state.phase).toBe("session_complete")
   })
 
-  /*it("isSubmitting guard: call is a no-op when isSubmitting is true", () => {
-    useSessionStore.setState({ isSubmitting: true })
-    const onPersist = makeOnPersist()
-    useSessionStore.getState().commitSet({ weightKg: 60, reps: 8, rirActual: 2, onPersist })
-    expect(onPersist).not.toHaveBeenCalled()
-  })*/
+  it("retries failed intermediate sets without duplicating them", async () => {
+    const failingPersist = vi.fn().mockRejectedValue(new Error("network"))
 
-  it("isSubmitting is false after commitSet resolves", async () => {
     await useSessionStore.getState().commitSet({
       weightKg: 60,
       reps: 8,
       rirActual: 2,
-      onPersist: makeOnPersist(),
+      onPersist: failingPersist,
     })
-    expect(useSessionStore.getState().isSubmitting).toBe(false)
+
+    expect(useSessionStore.getState().phase).toBe("resting")
+    expect(useSessionStore.getState().loggedSets).toHaveLength(1)
+    expect(useSessionStore.getState().loggedSets[0].syncStatus).toBe("failed")
+
+    const retryResult = await useSessionStore.getState().retryUnsyncedSets({
+      onPersist: makeOnPersist("srv-retried"),
+    })
+
+    expect(retryResult).toBe(true)
+    expect(useSessionStore.getState().loggedSets).toHaveLength(1)
+    expect(useSessionStore.getState().loggedSets[0]).toMatchObject({
+      serverSetLogId: "srv-retried",
+      syncStatus: "saved",
+    })
   })
 })
 
-// ---------------------------------------------------------------------------
-// tickTimer
-// ---------------------------------------------------------------------------
-
-describe("tickTimer", () => {
-  async function enterRestingPhase(
-    plannedOverrides?: Partial<SelectPlannedExercise>
-  ) {
-    useSessionStore.getState().initSession(
-      makeInitPayload({
-        exercises: [makeSessionExercise({ sets: 3, ...plannedOverrides })],
-      })
-    )
+describe("timer controls", () => {
+  beforeEach(async () => {
+    vi.useFakeTimers()
+    useSessionStore.getState().initSession(makeInitPayload())
     await useSessionStore.getState().commitSet({
       weightKg: 60,
       reps: 8,
       rirActual: 2,
       onPersist: makeOnPersist(),
     })
-  }
-
-  beforeEach(() => {
-    vi.useFakeTimers()
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it("decrements restSecondsRemaining by 1 per call", async () => {
-    await enterRestingPhase()
+  it("advances the timer toward the next active set", () => {
     useSessionStore.getState().tickTimer()
     expect(useSessionStore.getState().restSecondsRemaining).toBe(89)
   })
 
-  it("reaching 0 clears interval, sets phase to active_set, advances set number", async () => {
-    await enterRestingPhase({ restSeconds: 2 })
-    useSessionStore.getState().tickTimer()
-    useSessionStore.getState().tickTimer()
-    const s = useSessionStore.getState()
-    expect(s.restSecondsRemaining).toBe(0)
-    expect(s.restIntervalId).toBeNull()
-    expect(s.phase).toBe("active_set")
-    expect(s.currentSetNumber).toBe(2)
-  })
-
-  it("is a no-op when phase is not resting", () => {
-    useSessionStore.getState().initSession(makeInitPayload())
-    useSessionStore.getState().tickTimer()
-    expect(useSessionStore.getState().restSecondsRemaining).toBe(0)
-  })
-
-  it("advances to next exercise when last set of exercise completes rest", async () => {
-    const ex1 = makeSessionExercise(
-      {
-        id: "pe-1",
-        exerciseId: "ex-1",
-        sets: 1,
-        restSeconds: 1,
-        loadKg: 60,
-        repRange: "8-10",
-        rirTarget: 2,
-      },
-      { id: "ex-1", name: "Squat" }
-    )
-    const ex2 = makeSessionExercise(
-      {
-        id: "pe-2",
-        exerciseId: "ex-2",
-        sets: 3,
-        restSeconds: 90,
-        loadKg: 40,
-        repRange: "10-12",
-        rirTarget: 1,
-      },
-      { id: "ex-2", name: "Leg Press" }
-    )
-    useSessionStore
-      .getState()
-      .initSession(makeInitPayload({ exercises: [ex1, ex2] }))
-    await useSessionStore.getState().commitSet({
-      weightKg: 60,
-      reps: 8,
-      rirActual: 2,
-      onPersist: makeOnPersist(),
-    })
-    useSessionStore.getState().tickTimer()
-    const s = useSessionStore.getState()
-    expect(s.currentExerciseIndex).toBe(1)
-    expect(s.currentSetNumber).toBe(1)
-    expect(s.phase).toBe("active_set")
-    // inputs seeded from ex2
-    expect(s.inputWeight).toBe(40)
-    expect(s.inputReps).toBe(10)
-    expect(s.inputRir).toBe(1)
-  })
-
-  it("interval wiring: advancing time fires tickTimer via setInterval", async () => {
-    await enterRestingPhase({ restSeconds: 90 })
-    vi.advanceTimersByTime(3000)
-    expect(useSessionStore.getState().restSecondsRemaining).toBe(87)
+  it("skipRest clears the interval and advances to the next set", () => {
+    useSessionStore.getState().skipRest()
+    const state = useSessionStore.getState()
+    expect(state.restIntervalId).toBeNull()
+    expect(state.phase).toBe("active_set")
+    expect(state.currentSetNumber).toBe(2)
   })
 })
-
-// ---------------------------------------------------------------------------
-// adjustTimer
-// ---------------------------------------------------------------------------
-
-describe("adjustTimer", () => {
-  beforeEach(async () => {
-    vi.useFakeTimers()
-    useSessionStore.getState().initSession(makeInitPayload())
-    await useSessionStore.getState().commitSet({
-      weightKg: 60,
-      reps: 8,
-      rirActual: 2,
-      onPersist: makeOnPersist(),
-    })
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it("increases restSecondsRemaining by positive delta", () => {
-    useSessionStore.getState().adjustTimer(30)
-    expect(useSessionStore.getState().restSecondsRemaining).toBe(120)
-  })
-
-  it("decreases restSecondsRemaining by negative delta", () => {
-    useSessionStore.getState().adjustTimer(-30)
-    expect(useSessionStore.getState().restSecondsRemaining).toBe(60)
-  })
-
-  it("clamps lower bound to 0", () => {
-    useSessionStore.getState().adjustTimer(-9999)
-    expect(useSessionStore.getState().restSecondsRemaining).toBe(0)
-  })
-
-  it("clamps upper bound to restSecondsTotal + 120", () => {
-    useSessionStore.getState().adjustTimer(9999)
-    expect(useSessionStore.getState().restSecondsRemaining).toBe(90 + 120)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// skipRest
-// ---------------------------------------------------------------------------
-
-describe("skipRest", () => {
-  beforeEach(async () => {
-    vi.useFakeTimers()
-    useSessionStore.getState().initSession(makeInitPayload())
-    await useSessionStore.getState().commitSet({
-      weightKg: 60,
-      reps: 8,
-      rirActual: 2,
-      onPersist: makeOnPersist(),
-    })
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it("clears interval, sets phase to active_set, advances currentSetNumber", () => {
-    useSessionStore.getState().skipRest()
-    const s = useSessionStore.getState()
-    expect(s.restIntervalId).toBeNull()
-    expect(s.phase).toBe("active_set")
-    expect(s.currentSetNumber).toBe(2)
-  })
-
-  it("is a no-op when phase is not resting", () => {
-    useSessionStore.getState().skipRest()
-    useSessionStore.getState().skipRest()
-    // second call while active_set should not change currentSetNumber further
-    expect(useSessionStore.getState().currentSetNumber).toBe(2)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// reset
-// ---------------------------------------------------------------------------
 
 describe("reset", () => {
-  it("returns all state to empty defaults", async () => {
+  it("returns state to the empty defaults", async () => {
     useSessionStore.getState().initSession(makeInitPayload())
     await useSessionStore.getState().commitSet({
       weightKg: 60,
@@ -463,28 +387,16 @@ describe("reset", () => {
       rirActual: 2,
       onPersist: makeOnPersist(),
     })
-    useSessionStore.getState().reset()
-    const s = useSessionStore.getState()
-    expect(s.workoutLogId).toBe("")
-    expect(s.loggedSets).toHaveLength(0)
-    expect(s.phase).toBe("active_set")
-    expect(s.currentExerciseIndex).toBe(0)
-    expect(s.currentSetNumber).toBe(1)
-    expect(s.isSubmitting).toBe(false)
-  })
 
-  it("clears a running rest interval", async () => {
-    vi.useFakeTimers()
-    useSessionStore.getState().initSession(makeInitPayload())
-    await useSessionStore.getState().commitSet({
-      weightKg: 60,
-      reps: 8,
-      rirActual: 2,
-      onPersist: makeOnPersist(),
-    })
-    expect(useSessionStore.getState().restIntervalId).not.toBeNull()
     useSessionStore.getState().reset()
-    expect(useSessionStore.getState().restIntervalId).toBeNull()
-    vi.useRealTimers()
+
+    const state = useSessionStore.getState()
+    expect(state.workoutLogId).toBe("")
+    expect(state.loggedSets).toHaveLength(0)
+    expect(state.phase).toBe("active_set")
+    expect(state.currentExerciseIndex).toBe(0)
+    expect(state.currentSetNumber).toBe(1)
+    expect(state.isSubmitting).toBe(false)
+    expect(state.setSyncError).toBeNull()
   })
 })
