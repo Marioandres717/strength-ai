@@ -5,6 +5,7 @@ import {
   PlanGenerationSchema,
   SwapSchema,
   resolveExerciseName,
+  resolveAIProvider,
   type ExerciseLibraryEntry,
 } from "./ai"
 import {
@@ -117,6 +118,21 @@ describe("resolveExerciseName", () => {
 
   it("throws EXERCISE_NAME_MISMATCH for empty string", () => {
     expect(() => resolveExerciseName("", LIBRARY, index)).toThrow(AICallError)
+  })
+})
+
+describe("resolveAIProvider", () => {
+  it("defaults to Anthropic when no provider is configured", () => {
+    expect(resolveAIProvider(undefined)).toBe("anthropic")
+  })
+
+  it("accepts the supported provider names", () => {
+    expect(resolveAIProvider("anthropic")).toBe("anthropic")
+    expect(resolveAIProvider("openai")).toBe("openai")
+  })
+
+  it("rejects an unsupported provider", () => {
+    expect(() => resolveAIProvider("other")).toThrow(AICallError)
   })
 })
 

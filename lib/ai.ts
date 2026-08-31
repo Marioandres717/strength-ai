@@ -1,9 +1,15 @@
 import Anthropic, {
-  APIError,
-  AuthenticationError,
-  RateLimitError,
+  APIError as AnthropicAPIError,
+  AuthenticationError as AnthropicAuthenticationError,
+  RateLimitError as AnthropicRateLimitError,
 } from "@anthropic-ai/sdk"
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod"
+import OpenAI, {
+  APIError as OpenAIAPIError,
+  AuthenticationError as OpenAIAuthenticationError,
+  RateLimitError as OpenAIRateLimitError,
+} from "openai"
+import { zodTextFormat } from "openai/helpers/zod"
 import { z } from "zod"
 import {
   ADAPTATION_PROMPT,
@@ -15,7 +21,8 @@ import {
 } from "./prompts"
 
 // ── Model ──────────────────────────────────────────────────────────────────────
-const MODEL = "claude-sonnet-4-6" as const
+const ANTHROPIC_MODEL = "claude-sonnet-4-6" as const
+const OPENAI_MODEL = "gpt-4o-mini" as const
 
 // ── Error types ────────────────────────────────────────────────────────────────
 export type AIErrorCode =
@@ -37,22 +44,6 @@ export class AICallError extends Error {
 }
 
 // ── Client singleton ───────────────────────────────────────────────────────────
-let _client: Anthropic | null = null
-
-function getClient(): Anthropic {
-  if (!_client) {
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) {
-      throw new AICallError(
-        "MISSING_API_KEY",
-        "ANTHROPIC_API_KEY environment variable is not set"
-      )
-    }
-    _client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
-  }
-  return _client
-}
-
 // ── Input types ────────────────────────────────────────────────────────────────
 // Input types are plain TS interfaces — they come from our own DB, not from AI,
 // so runtime validation via Zod is not needed here.
@@ -209,22 +200,174 @@ function logFailure(fnName: string, latencyMs: number, error: string): void {
 
 // ── SDK error wrapping ─────────────────────────────────────────────────────────
 
-function wrapSDKError(err: unknown, fnName: string): AICallError {
-  if (err instanceof RateLimitError) {
+export type AIProviderName = "anthropic" | "openai"
+
+interface StructuredGenerationRequest<T> {
+  systemPrompt: string
+  userPrompt: string
+  schemaName: string
+  schema: z.ZodType<T>
+  maxOutputTokens: number
+}
+
+interface AIProvider {
+  generateObject<T>(request: StructuredGenerationRequest<T>): Promise<T>
+}
+
+export function resolveAIProvider(
+  value = process.env.AI_PROVIDER
+): AIProviderName {
+  if (!value || value === "anthropic") return "anthropic"
+  if (value === "openai") return "openai"
+
+  throw new AICallError(
+    "API_ERROR",
+    `Unsupported AI_PROVIDER "${value}". Use "anthropic" or "openai".`
+  )
+}
+
+class AnthropicProvider implements AIProvider {
+  private client: Anthropic | null = null
+
+  private getClient(): Anthropic {
+    if (!this.client) {
+      const apiKey = process.env.ANTHROPIC_API_KEY
+      if (!apiKey) {
+        throw new AICallError(
+          "MISSING_API_KEY",
+          "ANTHROPIC_API_KEY environment variable is not set"
+        )
+      }
+      this.client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
+    }
+    return this.client
+  }
+
+  async generateObject<T>(request: StructuredGenerationRequest<T>): Promise<T> {
+    const response = await this.getClient().messages.parse({
+      model: process.env.ANTHROPIC_MODEL ?? ANTHROPIC_MODEL,
+      max_tokens: request.maxOutputTokens,
+      temperature: 0,
+      system: request.systemPrompt,
+      messages: [{ role: "user", content: request.userPrompt }],
+      output_config: { format: zodOutputFormat(request.schema) },
+    })
+
+    if (!response.parsed_output) {
+      throw new AICallError(
+        "VALIDATION_ERROR",
+        "Anthropic returned no parsed structured output"
+      )
+    }
+    return request.schema.parse(response.parsed_output)
+  }
+}
+
+class OpenAIProvider implements AIProvider {
+  private client: OpenAI | null = null
+
+  private getClient(): OpenAI {
+    if (!this.client) {
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey) {
+        throw new AICallError(
+          "MISSING_API_KEY",
+          "OPENAI_API_KEY environment variable is not set"
+        )
+      }
+      this.client = new OpenAI({ apiKey })
+    }
+    return this.client
+  }
+
+  async generateObject<T>(request: StructuredGenerationRequest<T>): Promise<T> {
+    const response = await this.getClient().responses.parse({
+      model: process.env.OPENAI_MODEL ?? OPENAI_MODEL,
+      instructions: request.systemPrompt,
+      input: request.userPrompt,
+      max_output_tokens: request.maxOutputTokens,
+      temperature: 0,
+      store: false,
+      text: { format: zodTextFormat(request.schema, request.schemaName) },
+    })
+
+    if (!response.output_parsed) {
+      throw new AICallError(
+        "VALIDATION_ERROR",
+        "OpenAI returned no parsed structured output"
+      )
+    }
+    return request.schema.parse(response.output_parsed)
+  }
+}
+
+let provider: AIProvider | null = null
+let configuredProvider: AIProviderName | null = null
+
+function getProvider(): AIProvider {
+  const providerName = resolveAIProvider()
+  if (!provider || configuredProvider !== providerName) {
+    provider =
+      providerName === "openai" ? new OpenAIProvider() : new AnthropicProvider()
+    configuredProvider = providerName
+  }
+  return provider
+}
+
+function wrapProviderError(err: unknown, fnName: string): AICallError {
+  if (err instanceof z.ZodError) {
+    return new AICallError(
+      "VALIDATION_ERROR",
+      `${fnName}: AI response failed schema validation`,
+      err
+    )
+  }
+  if (
+    err instanceof AnthropicRateLimitError ||
+    err instanceof OpenAIRateLimitError
+  ) {
     return new AICallError(
       "RATE_LIMITED",
       `${fnName}: rate limit exceeded`,
       err
     )
   }
-  if (err instanceof AuthenticationError) {
+  if (
+    err instanceof AnthropicAuthenticationError ||
+    err instanceof OpenAIAuthenticationError
+  ) {
+    return new AICallError(
+      "MISSING_API_KEY",
+      `${fnName}: authentication failed â€” check the configured provider API key`,
+      err
+    )
+  }
+  if (err instanceof AnthropicAPIError || err instanceof OpenAIAPIError) {
+    return new AICallError(
+      "API_ERROR",
+      `${fnName}: API error (status ${err.status}) â€” ${err.message ?? ""}`,
+      err
+    )
+  }
+  return _wrapSDKError(err, fnName)
+}
+
+function _wrapSDKError(err: unknown, fnName: string): AICallError {
+  if (err instanceof AnthropicRateLimitError) {
+    return new AICallError(
+      "RATE_LIMITED",
+      `${fnName}: rate limit exceeded`,
+      err
+    )
+  }
+  if (err instanceof AnthropicAuthenticationError) {
     return new AICallError(
       "MISSING_API_KEY",
       `${fnName}: authentication failed — check ANTHROPIC_API_KEY`,
       err
     )
   }
-  if (err instanceof APIError) {
+  if (err instanceof AnthropicAPIError) {
     const msg = err.message ?? ""
     if (
       msg.includes("Failed to parse structured output") ||
@@ -358,40 +501,25 @@ function resolveNamesInSwap(
 }
 
 // ── Exported functions ─────────────────────────────────────────────────────────
-// All Anthropic SDK calls go through these three functions only.
-// Never import or call the Anthropic SDK directly from routes or server functions.
+// All provider calls go through these three functions only.
+// Never import or call a provider SDK directly from routes or server functions.
 
 export async function generatePlan(
   input: PlanGenerationInput
 ): Promise<PlanGenerationOutput> {
-  const client = getClient()
+  const aiProvider = getProvider()
   const start = Date.now()
   const summary = `goal=${input.goal} exp=${input.experience} sessions=${input.sessionsPerWeek} exercises=${input.exerciseLibrary.length}`
 
   try {
-    const message = await client.messages.parse(
-      {
-        model: MODEL,
-        max_tokens: 16000,
-        temperature: 0,
-        system: PLAN_GENERATION_PROMPT,
-        messages: [{ role: "user", content: buildPlanUserMessage(input) }],
-        output_config: { format: zodOutputFormat(PlanGenerationSchema) },
-      },
-      { headers: { "anthropic-beta": "output-128k-2025-02-19" } }
-    )
-
-    if (!message.parsed_output) {
-      throw new AICallError(
-        "VALIDATION_ERROR",
-        "generatePlan: parsed_output was null"
-      )
-    }
-
-    const resolved = resolveNamesInPlan(
-      message.parsed_output,
-      input.exerciseLibrary
-    )
+    const output = await aiProvider.generateObject({
+      systemPrompt: PLAN_GENERATION_PROMPT,
+      userPrompt: buildPlanUserMessage(input),
+      schemaName: "workout_plan",
+      schema: PlanGenerationSchema,
+      maxOutputTokens: 16000,
+    })
+    const resolved = resolveNamesInPlan(output, input.exerciseLibrary)
     logSuccess("generatePlan", Date.now() - start, summary)
     return resolved
   } catch (err) {
@@ -399,7 +527,7 @@ export async function generatePlan(
       logFailure("generatePlan", Date.now() - start, err.message)
       throw err
     }
-    const wrapped = wrapSDKError(err, "generatePlan")
+    const wrapped = wrapProviderError(err, "generatePlan")
     logFailure("generatePlan", Date.now() - start, wrapped.message)
     throw wrapped
   }
@@ -408,66 +536,47 @@ export async function generatePlan(
 export async function adaptWeek(
   input: AdaptationInput
 ): Promise<AdaptationOutput> {
-  const client = getClient()
+  const aiProvider = getProvider()
   const start = Date.now()
   const summary = `week=${input.weekNumber} sessions=${input.sessions.length} logs=${input.logs.length}`
 
   try {
-    const message = await client.messages.parse({
-      model: MODEL,
-      max_tokens: 2048,
-      temperature: 0,
-      system: ADAPTATION_PROMPT,
-      messages: [{ role: "user", content: buildAdaptationUserMessage(input) }],
-      output_config: { format: zodOutputFormat(AdaptationSchema) },
+    const output = await aiProvider.generateObject({
+      systemPrompt: ADAPTATION_PROMPT,
+      userPrompt: buildAdaptationUserMessage(input),
+      schemaName: "weekly_adaptation",
+      schema: AdaptationSchema,
+      maxOutputTokens: 2048,
     })
 
-    if (!message.parsed_output) {
-      throw new AICallError(
-        "VALIDATION_ERROR",
-        "adaptWeek: parsed_output was null"
-      )
-    }
-
     logSuccess("adaptWeek", Date.now() - start, summary)
-    return message.parsed_output
+    return output
   } catch (err) {
     if (err instanceof AICallError) {
       logFailure("adaptWeek", Date.now() - start, err.message)
       throw err
     }
-    const wrapped = wrapSDKError(err, "adaptWeek")
+    const wrapped = wrapProviderError(err, "adaptWeek")
     logFailure("adaptWeek", Date.now() - start, wrapped.message)
     throw wrapped
   }
 }
 
 export async function swapExercise(input: SwapInput): Promise<SwapOutput> {
-  const client = getClient()
+  const aiProvider = getProvider()
   const start = Date.now()
   const summary = `replacing="${input.exerciseToReplace.name}" equipment=${input.availableEquipment.length}`
 
   try {
-    const message = await client.messages.parse({
-      model: MODEL,
-      max_tokens: 1024,
-      temperature: 0,
-      system: SWAP_PROMPT,
-      messages: [{ role: "user", content: buildSwapUserMessage(input) }],
-      output_config: { format: zodOutputFormat(SwapSchema) },
+    const output = await aiProvider.generateObject({
+      systemPrompt: SWAP_PROMPT,
+      userPrompt: buildSwapUserMessage(input),
+      schemaName: "exercise_swap",
+      schema: SwapSchema,
+      maxOutputTokens: 1024,
     })
 
-    if (!message.parsed_output) {
-      throw new AICallError(
-        "VALIDATION_ERROR",
-        "swapExercise: parsed_output was null"
-      )
-    }
-
-    const resolved = resolveNamesInSwap(
-      message.parsed_output,
-      input.exerciseLibrary
-    )
+    const resolved = resolveNamesInSwap(output, input.exerciseLibrary)
     logSuccess("swapExercise", Date.now() - start, summary)
     return resolved
   } catch (err) {
@@ -475,7 +584,7 @@ export async function swapExercise(input: SwapInput): Promise<SwapOutput> {
       logFailure("swapExercise", Date.now() - start, err.message)
       throw err
     }
-    const wrapped = wrapSDKError(err, "swapExercise")
+    const wrapped = wrapProviderError(err, "swapExercise")
     logFailure("swapExercise", Date.now() - start, wrapped.message)
     throw wrapped
   }

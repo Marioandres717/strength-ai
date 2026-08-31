@@ -12,7 +12,7 @@ AI-powered personal strength training coach built for a single user. Generates s
 
 - Node.js 20.19+ or 22.12+
 - pnpm installed globally
-- Anthropic API key
+- Anthropic or OpenAI API key
 
 ### Installation
 
@@ -22,7 +22,7 @@ pnpm install
 
 # Set up environment variables
 cp .env.example .env
-# Add your ANTHROPIC_API_KEY to .env
+# Select a provider and add its API key in .env
 
 # Start development server
 pnpm dev
@@ -69,7 +69,7 @@ pnpm db:seed          # Seed the exercise library (idempotent, safe to re-run)
 | ---------- | --------------------------------------- |
 | Framework  | TanStack Start (Vite + TanStack Router) |
 | Database   | Drizzle ORM + better-sqlite3            |
-| AI         | Anthropic SDK (`claude-sonnet-4-6`)     |
+| AI         | Anthropic or OpenAI SDK (configurable)  |
 | Validation | Zod (AI output schemas)                 |
 | State      | Zustand (workout execution only)        |
 | Testing    | Vitest + happy-dom                      |
