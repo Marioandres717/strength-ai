@@ -1,66 +1,18 @@
 import { useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { saveFeedbackFn } from "../../functions/saveFeedback"
+import { TriangleAlertIcon } from "lucide-react"
 import type { ProgressionChange } from "../../functions/completeSession"
+import { saveFeedbackFn } from "../../functions/saveFeedback"
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
+import { Button } from "../ui/button"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "../ui/field"
 import { Slider } from "../ui/slider"
+import { Textarea } from "../ui/textarea"
 
 interface FeedbackPageProps {
   workoutLogId: string
   sessionName: string
   progressionChanges: ProgressionChange[]
-}
-
-const MUSCLE_GROUPS = [
-  "Chest",
-  "Back",
-  "Shoulders",
-  "Quads",
-  "Glutes",
-  "Hamstrings",
-  "Calves",
-  "Core",
-  "Arms",
-]
-
-const LOWER_BODY = new Set(["Quads", "Glutes", "Hamstrings", "Calves"])
-const UPPER_BODY = new Set(["Chest", "Back", "Shoulders", "Arms"])
-
-function buildCoachMessage(fatigue: number, soreness: string[]): string {
-  const lowerSore = soreness.filter((m) => LOWER_BODY.has(m))
-  const upperSore = soreness.filter((m) => UPPER_BODY.has(m))
-
-  let message = ""
-
-  if (fatigue >= 8) {
-    message += "Based on your high fatigue rating"
-    if (lowerSore.length > 0) {
-      message += ` and localized lower-body soreness (${lowerSore.join(", ")})`
-    } else if (upperSore.length > 0) {
-      message += ` and upper-body soreness (${upperSore.join(", ")})`
-    } else if (soreness.length > 0) {
-      message += ` and ${soreness.join(", ")} soreness`
-    }
-    message +=
-      ", your next session load will be kept steady to allow full recovery."
-  } else if (fatigue >= 6) {
-    message += "Moderate fatigue detected."
-    if (soreness.length > 0) {
-      message += ` Keep an eye on ${soreness.join(", ")} going into your next session.`
-    } else {
-      message +=
-        " Your next session targets are unchanged — maintain current loads."
-    }
-  } else {
-    message += "Great recovery profile."
-    if (soreness.length === 0) {
-      message +=
-        " No soreness flagged — your next session can target a load increase if you hit all reps."
-    } else {
-      message += ` Light soreness in ${soreness.join(", ")} is normal. Targets remain on track.`
-    }
-  }
-
-  return message
 }
 
 export function FeedbackPage({
@@ -69,52 +21,41 @@ export function FeedbackPage({
   progressionChanges,
 }: FeedbackPageProps) {
   const navigate = useNavigate()
-  const [fatigue, setFatigue] = useState(5)
-  const [soreness, setSoreness] = useState<string[]>([])
+  const [fatigue, setFatigue] = useState(3)
+  const [notes, setNotes] = useState("")
   const [isSaving, setIsSaving] = useState(false)
-
-  const toggleSoreness = (muscle: string) => {
-    setSoreness((prev) =>
-      prev.includes(muscle)
-        ? prev.filter((m) => m !== muscle)
-        : [...prev, muscle]
-    )
-  }
-
-  const coachMessage = buildCoachMessage(fatigue, soreness)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const handleSave = async () => {
     if (isSaving) return
-    setIsSaving(true)
 
-    // Encode soreness into notes if any muscles selected
-    const notesValue =
-      soreness.length > 0 ? `Soreness: ${soreness.join(", ")}` : null
+    setIsSaving(true)
+    setSaveError(null)
 
     try {
       await saveFeedbackFn({
         data: {
           workoutLogId,
           fatigueRating: fatigue,
-          notes: notesValue,
+          notes,
         },
       })
       void navigate({ to: "/" })
-    } catch (err) {
-      console.error("Failed to save feedback:", err)
+    } catch (error) {
+      console.error("Failed to save feedback:", error)
+      setSaveError("Failed to save feedback. Retry to finish the workout.")
       setIsSaving(false)
     }
   }
 
   return (
     <div className="bg-bg flex min-h-screen flex-col">
-      {/* Header bar */}
       <div className="pt-safe-top flex items-center gap-3 px-4 py-4">
         <button
           type="button"
           onClick={() => void navigate({ to: "/" })}
           aria-label="Close"
-          className="border-border bg-surface flex h-9 w-9 items-center justify-center rounded-full border text-white"
+          className="border-border bg-surface flex size-9 items-center justify-center rounded-full border text-white"
         >
           <svg
             className="h-4 w-4"
@@ -135,15 +76,14 @@ export function FeedbackPage({
       </div>
 
       <div className="pb-safe-bottom flex-1 overflow-y-auto px-5">
-        {/* Hero */}
         <div className="mt-2 mb-8">
           <h1 className="text-4xl font-bold text-white">Session Logged</h1>
           <p className="text-muted mt-2 text-sm">
-            {sessionName} · Help calibrate your next training block.
+            {sessionName} · Rate the session and leave any notes worth carrying
+            forward.
           </p>
         </div>
 
-        {/* Progression changes (if any) */}
         {progressionChanges.length > 0 && (
           <div className="mb-6">
             <p className="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">
@@ -185,118 +125,66 @@ export function FeedbackPage({
           </div>
         )}
 
-        {/* Perceived Fatigue */}
-        <div className="mb-8">
-          <div className="mb-4 flex items-center justify-between">
-            <p className="text-base font-semibold text-white">
-              Perceived Fatigue
-            </p>
-            <span className="text-accent text-base font-bold tabular-nums">
-              {fatigue} / 10
-            </span>
-          </div>
+        <FieldGroup className="mb-8">
+          <Field>
+            <div className="mb-4 flex items-center justify-between">
+              <FieldLabel htmlFor="fatigue">Perceived Fatigue</FieldLabel>
+              <span className="text-accent text-base font-bold tabular-nums">
+                {fatigue} / 5
+              </span>
+            </div>
+            <Slider
+              id="fatigue"
+              min={1}
+              max={5}
+              step={1}
+              value={[fatigue]}
+              onValueChange={([value]) => setFatigue(value ?? 3)}
+              aria-label="Perceived fatigue from 1 to 5"
+              className="[--color-muted:var(--color-border)] [--color-primary:var(--color-accent)] **:data-[slot=slider-thumb]:size-5 **:data-[slot=slider-thumb]:border-2 **:data-[slot=slider-track]:h-2"
+            />
+            <div className="mt-2 flex justify-between">
+              <span className="text-muted text-xs">Fresh</span>
+              <span className="text-muted text-xs">Exhausted</span>
+            </div>
+            <FieldDescription>
+              Use a 1-5 scale based on overall session fatigue.
+            </FieldDescription>
+          </Field>
 
-          <Slider
-            min={1}
-            max={10}
-            step={1}
-            value={[fatigue]}
-            onValueChange={([v]) => setFatigue(v)}
-            aria-label="Perceived fatigue from 1 to 10"
-            className="[--color-muted:var(--color-border)] [--color-primary:var(--color-accent)] **:data-[slot=slider-thumb]:size-5 **:data-[slot=slider-thumb]:border-2 **:data-[slot=slider-track]:h-2"
-          />
+          <Field>
+            <FieldLabel htmlFor="notes">Training Notes</FieldLabel>
+            <Textarea
+              id="notes"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value.slice(0, 2000))}
+              placeholder="Optional notes about fatigue, performance, or anything to review later."
+              rows={5}
+              maxLength={2000}
+            />
+            <FieldDescription>
+              Optional. Notes are trimmed automatically and capped at 2,000
+              characters.
+            </FieldDescription>
+          </Field>
+        </FieldGroup>
 
-          <div className="mt-2 flex justify-between">
-            <span className="text-muted text-xs">Fresh</span>
-            <span className="text-muted text-xs">Exhausted</span>
-          </div>
-        </div>
+        {saveError && (
+          <Alert variant="destructive" className="mb-6">
+            <TriangleAlertIcon />
+            <AlertTitle>Save failed</AlertTitle>
+            <AlertDescription>{saveError}</AlertDescription>
+          </Alert>
+        )}
 
-        {/* Muscle Soreness */}
-        <div className="mb-8">
-          <p className="mb-4 text-base font-semibold text-white">
-            Muscle Soreness
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {MUSCLE_GROUPS.map((muscle) => {
-              const selected = soreness.includes(muscle)
-              return (
-                <button
-                  key={muscle}
-                  type="button"
-                  onClick={() => toggleSoreness(muscle)}
-                  aria-pressed={selected}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                    selected
-                      ? "bg-accent text-black"
-                      : "border-border bg-surface border text-white"
-                  }`}
-                >
-                  {selected && (
-                    <span className="mr-1.5" aria-hidden="true">
-                      ✓
-                    </span>
-                  )}
-                  {muscle}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Adaptive Coach Active */}
-        <div className="bg-accent/10 border-accent/20 mb-8 rounded-2xl border px-4 py-4">
-          <div className="mb-2 flex items-center gap-2">
-            <svg
-              className="text-accent h-4 w-4 shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-              />
-            </svg>
-            <p className="text-accent text-sm font-semibold">
-              Adaptive Coach Active
-            </p>
-          </div>
-          <p className="text-muted text-sm leading-relaxed">{coachMessage}</p>
-        </div>
-
-        {/* CTA */}
-        <button
+        <Button
           type="button"
           onClick={() => void handleSave()}
           disabled={isSaving}
-          className="bg-accent mb-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold text-black transition-opacity disabled:opacity-60"
+          className="bg-accent hover:bg-accent/90 mb-6 h-14 w-full rounded-2xl text-sm font-bold text-black"
         >
-          {isSaving ? (
-            "Saving…"
-          ) : (
-            <>
-              Save & Finish
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  d="M5 12h14M12 5l7 7-7 7"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </>
-          )}
-        </button>
+          {isSaving ? "Saving..." : "Save & Finish"}
+        </Button>
       </div>
     </div>
   )

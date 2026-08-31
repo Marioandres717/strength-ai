@@ -39,6 +39,10 @@ export const getFeedbackDataFn = createServerFn({ method: "GET" })
     }
     const log = logs[0]
 
+    if (log.completedAt == null) {
+      throw new Error("Workout feedback is only available after completion.")
+    }
+
     // Fetch session template for the name
     const templates = await db
       .select()
