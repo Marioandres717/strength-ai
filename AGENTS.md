@@ -13,6 +13,21 @@ at a time.
 
 ---
 
+## Skill usage
+
+Project-specific skills live in `.claude/skills/`.
+
+- When a task matches a skill's description, use that skill before falling
+  back to general guidance.
+- If you want a specific skill used, name it explicitly in the request,
+  for example `shadcn`, `clean-typescript`, or `modern-tailwind`.
+- Skills in `.claude/skills/` are local project guidance, not package
+  dependencies. Read the matching `SKILL.md` before applying it.
+- Prefer the skill that matches the work most closely rather than applying
+  several loosely related skills at once.
+
+---
+
 ## What the AI does
 
 - Generates a complete training program once at onboarding — result is stored in DB, not recomputed

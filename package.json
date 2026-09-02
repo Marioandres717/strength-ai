@@ -23,7 +23,7 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx lib/seed.ts",
     "validate": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test run",
-    "prepare": "husky"
+    "prepare": "lefthook install --reset-hooks-path"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
@@ -74,9 +74,8 @@
     "eslint-plugin-testing-library": "^7.16.2",
     "eslint-plugin-vitest": "^0.5.4",
     "happy-dom": "^20.8.9",
-    "husky": "^9.1.7",
     "jsdom": "^28.1.0",
-    "lint-staged": "^16.4.0",
+    "lefthook": "^2.1.12",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tsx": "^4.19.4",
@@ -85,14 +84,5 @@
     "vite": "^7.3.1",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.5"
-  },
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,css,md}": [
-      "prettier --write"
-    ]
   }
 }

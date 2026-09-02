@@ -1,0 +1,18 @@
+assert_lefthook_installed: true
+glob_matcher: doublestar
+
+pre-commit:
+  jobs:
+    - name: eslint
+      glob: "**/*.{js,cjs,mjs,ts,tsx}"
+      run: pnpm exec eslint --fix {staged_files}
+      stage_fixed: true
+    - name: prettier
+      glob: "**/*.{json,css,md}"
+      run: pnpm exec prettier --write {staged_files}
+      stage_fixed: true
+
+pre-push:
+  jobs:
+    - name: validate
+      run: pnpm validate
