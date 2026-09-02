@@ -9,30 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as SessionIdRouteImport } from './routes/session/$id'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as FeedbackIdRouteImport } from './routes/feedback/$id'
+import { Route as SessionIdRouteImport } from './routes/session/$id'
 
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SessionIdRoute = SessionIdRouteImport.update({
-  id: '/session/$id',
-  path: '/session/$id',
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedbackIdRoute = FeedbackIdRouteImport.update({
@@ -40,17 +29,20 @@ const FeedbackIdRoute = FeedbackIdRouteImport.update({
   path: '/feedback/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SessionIdRoute = SessionIdRouteImport.update({
+  id: '/session/$id',
+  path: '/session/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/onboarding': typeof OnboardingRoute
   '/feedback/$id': typeof FeedbackIdRoute
   '/session/$id': typeof SessionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/onboarding': typeof OnboardingRoute
   '/feedback/$id': typeof FeedbackIdRoute
   '/session/$id': typeof SessionIdRoute
@@ -58,28 +50,20 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/onboarding': typeof OnboardingRoute
   '/feedback/$id': typeof FeedbackIdRoute
   '/session/$id': typeof SessionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/onboarding' | '/feedback/$id' | '/session/$id'
+  fullPaths: '/' | '/onboarding' | '/feedback/$id' | '/session/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/onboarding' | '/feedback/$id' | '/session/$id'
-  id:
-    | '__root__'
-    | '/'
-    | '/about'
-    | '/onboarding'
-    | '/feedback/$id'
-    | '/session/$id'
+  to: '/' | '/onboarding' | '/feedback/$id' | '/session/$id'
+  id: '__root__' | '/' | '/onboarding' | '/feedback/$id' | '/session/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
   OnboardingRoute: typeof OnboardingRoute
   FeedbackIdRoute: typeof FeedbackIdRoute
   SessionIdRoute: typeof SessionIdRoute
@@ -87,20 +71,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -108,11 +78,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/session/$id': {
-      id: '/session/$id'
-      path: '/session/$id'
-      fullPath: '/session/$id'
-      preLoaderRoute: typeof SessionIdRouteImport
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feedback/$id': {
@@ -122,12 +92,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedbackIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/session/$id': {
+      id: '/session/$id'
+      path: '/session/$id'
+      fullPath: '/session/$id'
+      preLoaderRoute: typeof SessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
   OnboardingRoute: OnboardingRoute,
   FeedbackIdRoute: FeedbackIdRoute,
   SessionIdRoute: SessionIdRoute,

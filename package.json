@@ -86,13 +86,6 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.5"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss",
-      "better-sqlite3"
-    ]
-  },
   "lint-staged": {
     "*.{ts,tsx}": [
       "eslint --fix",
