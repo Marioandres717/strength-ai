@@ -16,3 +16,5 @@ pre-push:
   jobs:
     - name: validate
       run: pnpm validate
+    - name: knip
+      run: pnpm knip
