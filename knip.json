@@ -7,7 +7,6 @@
   ],
   "ignoreFiles": [
     "src/components/ThemeToggle.tsx",
-    "src/components/ui/card.tsx",
     "src/components/ui/input.tsx",
     "src/components/ui/progress.tsx",
     "src/components/ui/tabs.tsx"
@@ -16,6 +15,7 @@
     "lib/ai.ts": ["exports", "types"],
     "lib/db.ts": ["exports"],
     "src/components/ui/button.tsx": ["exports"],
+    "src/components/ui/card.tsx": ["exports"],
     "src/components/ui/field.tsx": ["exports"],
     "src/functions/**/*.ts": ["exports", "types"],
     "src/stores/sessionStore.ts": ["types"],
