@@ -1,0 +1,17 @@
+services:
+  strength-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /data/strength.db
+      BACKUP_DIR: /backups
+      BACKUP_RETENTION: 30
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./runtime-data:/data
+      - ./backups:/backups
+    restart: unless-stopped

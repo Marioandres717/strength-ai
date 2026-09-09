@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.git
+.env
+runtime-data
+backups
+strength.db
+strength.db-shm
+strength.db-wal

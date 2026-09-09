@@ -13,8 +13,10 @@ __unconfig*
 todos.json
 coverage
 
-# SQLite database
+# SQLite databases and portable Docker runtime data
 strength.db
 strength.db-shm
 strength.db-wal
+runtime-data/
+backups/
 .aider*

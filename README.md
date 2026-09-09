@@ -30,6 +30,12 @@ pnpm dev
 
 The app will be available at [http://localhost:3000](http://localhost:3000)
 
+## Private Docker deployment
+
+See [the private Docker host guide](./docs/private-docker-host.md) for the
+Windows/macOS Compose deployment, Tailscale-only phone access, verified SQLite
+backups, and the safe database handoff procedure.
+
 ---
 
 ## Available Commands

@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as FeedbackIdRouteImport } from './routes/feedback/$id'
@@ -18,6 +19,11 @@ import { Route as SessionIdRouteImport } from './routes/session/$id'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HealthzRoute = HealthzRouteImport.update({
+  id: '/healthz',
+  path: '/healthz',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -43,6 +49,7 @@ const SessionIdRoute = SessionIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/healthz': typeof HealthzRoute
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
   '/feedback/$id': typeof FeedbackIdRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/healthz': typeof HealthzRoute
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
   '/feedback/$id': typeof FeedbackIdRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/healthz': typeof HealthzRoute
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
   '/feedback/$id': typeof FeedbackIdRoute
@@ -65,12 +74,25 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/onboarding' | '/plan' | '/feedback/$id' | '/session/$id'
+  fullPaths:
+    | '/'
+    | '/healthz'
+    | '/onboarding'
+    | '/plan'
+    | '/feedback/$id'
+    | '/session/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/onboarding' | '/plan' | '/feedback/$id' | '/session/$id'
+  to:
+    | '/'
+    | '/healthz'
+    | '/onboarding'
+    | '/plan'
+    | '/feedback/$id'
+    | '/session/$id'
   id:
     | '__root__'
     | '/'
+    | '/healthz'
     | '/onboarding'
     | '/plan'
     | '/feedback/$id'
@@ -79,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HealthzRoute: typeof HealthzRoute
   OnboardingRoute: typeof OnboardingRoute
   PlanRoute: typeof PlanRoute
   FeedbackIdRoute: typeof FeedbackIdRoute
@@ -92,6 +115,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/healthz': {
+      id: '/healthz'
+      path: '/healthz'
+      fullPath: '/healthz'
+      preLoaderRoute: typeof HealthzRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -127,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HealthzRoute: HealthzRoute,
   OnboardingRoute: OnboardingRoute,
   PlanRoute: PlanRoute,
   FeedbackIdRoute: FeedbackIdRoute,

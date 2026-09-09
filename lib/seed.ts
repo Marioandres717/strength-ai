@@ -15,5 +15,3 @@ export function seedExercises(): void {
   db.insert(exercise).values(rows).run()
   console.warn(`Seeded ${rows.length} exercises.`)
 }
-
-seedExercises()
