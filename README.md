@@ -10,8 +10,8 @@ AI-powered personal strength training coach built for a single user. Generates s
 
 ### Prerequisites
 
-- Node.js 20.19+ or 22.12+
-- pnpm installed globally
+- Node.js 24
+- pnpm 11.18.0 (via Corepack)
 - Anthropic or OpenAI API key
 
 ### Installation
@@ -50,6 +50,11 @@ pnpm preview          # Preview production build
 pnpm test             # Run tests in watch mode
 pnpm test:ui          # Run tests with UI
 pnpm test:coverage    # Generate coverage report
+pnpm e2e              # Build and run production browser journeys
+pnpm e2e:ci           # Build and run functional, Axe, and visual gates
+pnpm e2e:visual       # Build and run Linux visual comparisons
+pnpm e2e:update-snapshots # Refresh baselines in the canonical Linux environment
+pnpm e2e:report       # Open the latest Playwright HTML report
 
 # Code Quality
 pnpm lint             # Check code for linting issues
@@ -66,6 +71,18 @@ pnpm db:studio        # Open Drizzle Studio to inspect the database
 pnpm db:seed          # Seed the exercise library (idempotent, safe to re-run)
 
 ```
+
+### Browser verification
+
+Install Chromium once with `pnpm exec playwright install chromium`. Playwright
+serves the production build on port 3100 and uses a guarded SQLite database at
+`test-results/e2e/strength.db`; it never resets the development database.
+
+Pixel baselines for the dashboard, active set, rest timer, and feedback states
+are generated on Linux. Run `pnpm e2e:update-snapshots` in that canonical
+environment when an intentional visual change needs new baselines. Windows
+`pnpm e2e` runs the functional and accessibility journeys without pixel
+comparisons.
 
 ---
 

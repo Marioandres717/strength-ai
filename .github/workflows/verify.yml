@@ -1,0 +1,106 @@
+name: Verify
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  quality-and-browser:
+    name: Quality and browser verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Validate source
+        run: pnpm validate
+
+      - name: Build production application
+        run: pnpm build
+
+      - name: Run production browser verification
+        run: pnpm e2e:ci
+
+      - name: Upload Playwright diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-diagnostics
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            test-results/playwright-report/
+            test-results/playwright/
+            test-results/e2e/
+
+  docker-production:
+    name: Docker production smoke test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build --tag strength-ai:verify .
+
+      - name: Verify health and SSR
+        shell: bash
+        run: |
+          set -euo pipefail
+          data_dir="$(mktemp -d)"
+          backup_dir="$(mktemp -d)"
+          container_name="strength-ai-verify-${GITHUB_RUN_ID}"
+
+          cleanup() {
+            docker rm --force "$container_name" >/dev/null 2>&1 || true
+            rm -rf "$data_dir" "$backup_dir"
+          }
+          trap cleanup EXIT
+
+          docker run --detach \
+            --name "$container_name" \
+            --publish 127.0.0.1:3200:3000 \
+            --env DATABASE_PATH=/data/strength.db \
+            --env BACKUP_DIR=/backups \
+            --mount "type=bind,source=$data_dir,target=/data" \
+            --mount "type=bind,source=$backup_dir,target=/backups" \
+            strength-ai:verify
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3200/healthz >/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              docker logs "$container_name"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent http://127.0.0.1:3200/healthz | grep '"status":"healthy"'
+          curl --fail --silent --location http://127.0.0.1:3200/ | grep --fixed-strings 'What&#x27;s your goal?'

@@ -2,6 +2,11 @@
   "name": "strength-ai",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": "11.18.0"
+  },
   "imports": {
     "#/*": "./src/*"
   },
@@ -11,9 +16,15 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "tsx scripts/initialize.ts && srvx serve --prod --host 0.0.0.0 --port 3000 --entry ./dist/server/server.js --static ../client",
+    "start:e2e": "cross-env STRENGTH_AI_E2E=1 DATABASE_PATH=test-results/e2e/strength.db tsx scripts/initialize.ts && cross-env STRENGTH_AI_E2E=1 DATABASE_PATH=test-results/e2e/strength.db srvx serve --prod --host 127.0.0.1 --port 3100 --entry ./dist/server/server.js --static ../client",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "e2e": "pnpm build && playwright test --grep-invert @visual",
+    "e2e:ci": "pnpm build && playwright test",
+    "e2e:visual": "pnpm build && playwright test --grep @visual",
+    "e2e:update-snapshots": "tsx scripts/update-e2e-snapshots.ts",
+    "e2e:report": "playwright show-report test-results/playwright-report",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
@@ -54,7 +65,9 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "latest",
     "@tanstack/eslint-plugin-query": "^5.96.2",
@@ -80,8 +93,8 @@
     "eslint-plugin-vitest": "^0.5.4",
     "happy-dom": "^20.8.9",
     "jsdom": "^28.1.0",
-    "lefthook": "^2.1.12",
     "knip": "^6.34.0",
+    "lefthook": "^2.1.12",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tsx": "^4.19.4",

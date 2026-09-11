@@ -12,6 +12,8 @@ dist-ssr
 __unconfig*
 todos.json
 coverage
+test-results/
+playwright-report/
 
 # SQLite databases and portable Docker runtime data
 strength.db
