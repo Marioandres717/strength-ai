@@ -69,7 +69,11 @@ export async function getPlanDataOperation(
     .select()
     .from(sessionTemplate)
     .where(eq(sessionTemplate.programId, activeProgram.id))
-    .orderBy(asc(sessionTemplate.weekNumber), asc(sessionTemplate.createdAt))
+    .orderBy(
+      asc(sessionTemplate.weekNumber),
+      asc(sessionTemplate.orderIndex),
+      asc(sessionTemplate.createdAt)
+    )
 
   const sessions = await Promise.all(
     templates.map(async (template): Promise<PlanSession> => {

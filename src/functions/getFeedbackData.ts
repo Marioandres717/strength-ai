@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { eq } from "drizzle-orm"
+import { desc, eq } from "drizzle-orm"
 import { z } from "zod"
 import { db } from "../../lib/db"
 import {
@@ -8,11 +8,13 @@ import {
   sessionTemplate,
   setLog,
   workoutLog,
+  userProfile,
 } from "../../lib/schema"
 import { computeProgression } from "../../lib/rules"
 import type { ProgressionChange } from "./completeSession"
 
 export interface GetFeedbackDataResult {
+  units: "kg" | "lbs"
   workoutLogId: string
   sessionName: string
   progressionChanges: ProgressionChange[]
@@ -25,6 +27,11 @@ const inputSchema = z.object({
 export const getFeedbackDataFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
   .handler(async ({ data }): Promise<GetFeedbackDataResult> => {
+    const [profile] = await db
+      .select({ units: userProfile.units })
+      .from(userProfile)
+      .orderBy(desc(userProfile.createdAt))
+      .limit(1)
     const { workoutLogId } = data
 
     // Fetch workout log
@@ -120,6 +127,7 @@ export const getFeedbackDataFn = createServerFn({ method: "GET" })
     }
 
     return {
+      units: profile?.units ?? "kg",
       workoutLogId,
       sessionName,
       progressionChanges,

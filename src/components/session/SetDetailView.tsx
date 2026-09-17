@@ -1,5 +1,7 @@
 import type { SessionExercise } from "../../stores/sessionStore"
 import { SpinnerInput } from "./SpinnerInput"
+import { displayWeight } from "../../lib/weightUnits"
+import type { WeightUnit } from "../../lib/weightUnits"
 
 interface SetDetailViewProps {
   exercise: SessionExercise
@@ -8,6 +10,7 @@ interface SetDetailViewProps {
   exerciseIndex: number
   totalExercises: number
   inputWeight: number
+  units: WeightUnit
   inputReps: number
   inputRir: number
   isSubmitting: boolean
@@ -26,6 +29,7 @@ export function SetDetailView({
   exerciseIndex,
   totalExercises,
   inputWeight,
+  units,
   inputReps,
   inputRir,
   isSubmitting,
@@ -89,9 +93,9 @@ export function SetDetailView({
             </p>
             <div className="flex items-baseline gap-1.5">
               <span className="text-2xl font-bold text-white tabular-nums">
-                {priorPerformance.weightKg}
+                {displayWeight(priorPerformance.weightKg, units)}
               </span>
-              <span className="text-muted text-sm">lbs</span>
+              <span className="text-muted text-sm">{units}</span>
               <span className="text-muted mx-1 text-sm">×</span>
               <span className="text-2xl font-bold text-white tabular-nums">
                 {priorPerformance.reps}
@@ -157,11 +161,11 @@ export function SetDetailView({
             <SpinnerInput
               label="Weight"
               value={inputWeight}
-              step={2.5}
+              step={units === "lbs" ? 5 : 2.5}
               min={0}
-              max={500}
-              unit="kg"
-              hint={`${planned.loadKg} kg`}
+              max={units === "lbs" ? 1100 : 500}
+              unit={units}
+              hint={`${displayWeight(planned.loadKg, units)} ${units}`}
               onChange={onWeightChange}
             />
           </div>

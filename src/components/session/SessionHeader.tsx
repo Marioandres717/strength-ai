@@ -4,6 +4,7 @@ interface SessionHeaderProps {
   totalExercises: number
   elapsedSeconds: number
   totalVolumeKg: number
+  units: "kg" | "lbs"
 }
 
 function formatElapsed(seconds: number): string {
@@ -18,6 +19,7 @@ export function SessionHeader({
   totalExercises,
   elapsedSeconds,
   totalVolumeKg,
+  units,
 }: SessionHeaderProps) {
   return (
     <div className="border-border pt-safe-top border-b px-5 pb-4">
@@ -60,7 +62,7 @@ export function SessionHeader({
           <p className="text-muted text-xs">Volume</p>
           <p className="mt-0.5 text-sm font-bold text-white tabular-nums">
             {totalVolumeKg.toLocaleString()}
-            <span className="text-muted ml-1 text-xs font-normal">kg</span>
+            <span className="text-muted ml-1 text-xs font-normal">{units}</span>
           </p>
         </div>
         <div>

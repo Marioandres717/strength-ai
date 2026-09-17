@@ -4,6 +4,7 @@ import { completeSessionFn } from "../../functions/completeSession"
 import type { GetSessionDataResult } from "../../functions/getSessionData"
 import { logSetFn } from "../../functions/logSet"
 import { useSessionStore } from "../../stores/sessionStore"
+import { displayWeight, toKg } from "../../lib/weightUnits"
 import { ExecutionView } from "./ExecutionView"
 import { SessionHeader } from "./SessionHeader"
 import { SetDetailView } from "./SetDetailView"
@@ -165,6 +166,7 @@ export function SessionPage({ loaderData }: SessionPageProps) {
     (sum: number, set) => sum + set.weightKg * set.reps,
     0
   )
+  const units = loaderData.units
 
   const handleCommitSet = () => {
     setCompletionError(null)
@@ -240,7 +242,8 @@ export function SessionPage({ loaderData }: SessionPageProps) {
         currentExerciseIndex={currentExerciseIndex}
         totalExercises={exercises.length}
         elapsedSeconds={elapsedSeconds}
-        totalVolumeKg={Math.round(totalVolumeKg)}
+        totalVolumeKg={Math.round(displayWeight(totalVolumeKg, units))}
+        units={units}
       />
 
       {phase === "active_set" ? (
@@ -250,7 +253,8 @@ export function SessionPage({ loaderData }: SessionPageProps) {
           totalSets={currentExercise.planned.sets}
           exerciseIndex={currentExerciseIndex}
           totalExercises={exercises.length}
-          inputWeight={inputWeight}
+          inputWeight={displayWeight(inputWeight, units)}
+          units={units}
           inputReps={inputReps}
           inputRir={inputRir}
           isSubmitting={isSubmitting}
@@ -258,13 +262,14 @@ export function SessionPage({ loaderData }: SessionPageProps) {
           onBack={() => {
             void navigate({ to: "/" })
           }}
-          onWeightChange={setInputWeight}
+          onWeightChange={(weight) => setInputWeight(toKg(weight, units))}
           onRepsChange={setInputReps}
           onRirChange={setInputRir}
           onComplete={handleCommitSet}
         />
       ) : (
         <ExecutionView
+          units={units}
           exercises={exercises}
           currentExerciseIndex={currentExerciseIndex}
           currentSetNumber={currentSetNumber}

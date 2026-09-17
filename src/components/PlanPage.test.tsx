@@ -37,6 +37,7 @@ const data: Extract<PlanDataState, { kind: "active" }> = {
           id: "session-2",
           programId: "program-1",
           weekNumber: 2,
+          orderIndex: 0,
           dayLabel: "Lower B",
           focus: "hypertrophy",
           userId: "user-1",

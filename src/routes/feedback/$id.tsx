@@ -15,6 +15,7 @@ function Component() {
       workoutLogId={data.workoutLogId}
       sessionName={data.sessionName}
       progressionChanges={data.progressionChanges}
+      units={data.units}
     />
   )
 }

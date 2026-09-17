@@ -124,7 +124,7 @@ export const generatePlanFn = createServerFn({ method: "POST" })
         .run()
 
       for (const week of result.weeks) {
-        for (const session of week.sessions) {
+        for (const [orderIndex, session] of week.sessions.entries()) {
           const sessionId = crypto.randomUUID()
 
           tx.insert(sessionTemplate)
@@ -132,6 +132,7 @@ export const generatePlanFn = createServerFn({ method: "POST" })
               id: sessionId,
               programId,
               weekNumber: week.weekNumber,
+              orderIndex,
               dayLabel: session.dayLabel,
               focus: session.focus,
               userId: null,

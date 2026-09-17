@@ -1,5 +1,7 @@
 import { useState } from "react"
 import type { PlanDataState, PlanSession } from "../functions/getPlanData"
+import { formatWeight } from "../lib/weightUnits"
+import type { WeightUnit } from "../lib/weightUnits"
 import { Button } from "./ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 
@@ -101,6 +103,7 @@ export function PlanPage({ data }: PlanPageProps) {
                 key={session.template.id}
                 session={session}
                 sessionLengthMin={profile.sessionLengthMin}
+                units={profile.units}
               />
             ))}
             {sessions.length === 0 && (
@@ -120,9 +123,11 @@ export function PlanPage({ data }: PlanPageProps) {
 function SessionCard({
   session,
   sessionLengthMin,
+  units,
 }: {
   session: PlanSession
   sessionLengthMin: number
+  units: WeightUnit
 }) {
   const [expanded, setExpanded] = useState(false)
   const { template, exercises } = session
@@ -149,7 +154,7 @@ function SessionCard({
               <h3 className="font-semibold text-white">{exercise.name}</h3>
               <p className="text-muted text-sm">
                 {planned.sets} × {planned.repRange} ·{" "}
-                {formatLoad(planned.loadKg)} · {planned.rirTarget} RIR
+                {formatWeight(planned.loadKg, units)} · {planned.rirTarget} RIR
               </p>
               <p className="text-muted text-sm">
                 Rest {formatRest(planned.restSeconds)}
@@ -191,10 +196,6 @@ function weekFocus(sessions: PlanSession[]) {
   if (focuses.size !== 1) return "Mixed"
   const [focus] = focuses
   return FOCUS_LABELS[focus] ?? focus
-}
-
-function formatLoad(loadKg: number) {
-  return `${Number.isInteger(loadKg) ? loadKg : loadKg.toFixed(1)} kg`
 }
 
 function formatRest(restSeconds: number) {

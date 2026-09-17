@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start"
-import { desc, eq, and } from "drizzle-orm"
+import { asc, desc, eq, and, inArray } from "drizzle-orm"
 import { db } from "../../lib/db"
 import {
   userProfile,
@@ -8,6 +8,7 @@ import {
   plannedExercise,
   exercise,
   workoutLog,
+  setLog,
 } from "../../lib/schema"
 import type {
   SelectUserProfile,
@@ -22,6 +23,7 @@ export interface SessionWithExercises {
   template: SelectSessionTemplate
   exercises: { exercise: SelectExercise; planned: SelectPlannedExercise }[]
   workoutLog: SelectWorkoutLog | null
+  hasLoggedSets?: boolean
 }
 
 export type DashboardState =
@@ -52,6 +54,7 @@ export const getDashboardDataFn = createServerFn({ method: "GET" }).handler(
       .select()
       .from(program)
       .where(eq(program.status, "active"))
+      .orderBy(desc(program.createdAt))
       .limit(1)
     if (programs.length === 0) return { kind: "no_program", profile }
     const activeProgram = programs[0]
@@ -76,7 +79,7 @@ export const getDashboardDataFn = createServerFn({ method: "GET" }).handler(
           eq(sessionTemplate.weekNumber, currentWeek)
         )
       )
-      .orderBy(sessionTemplate.createdAt)
+      .orderBy(asc(sessionTemplate.orderIndex), asc(sessionTemplate.createdAt))
 
     // 5. For each template, load exercises + latest workout log in parallel
     const sessionsThisWeek: SessionWithExercises[] = await Promise.all(
@@ -95,6 +98,24 @@ export const getDashboardDataFn = createServerFn({ method: "GET" }).handler(
           .orderBy(desc(workoutLog.startedAt))
           .limit(1)
 
+        const allLogs = await db
+          .select({ id: workoutLog.id })
+          .from(workoutLog)
+          .where(eq(workoutLog.sessionTemplateId, tmpl.id))
+        const loggedSets =
+          allLogs.length === 0
+            ? []
+            : await db
+                .select({ id: setLog.id })
+                .from(setLog)
+                .where(
+                  inArray(
+                    setLog.workoutLogId,
+                    allLogs.map((log) => log.id)
+                  )
+                )
+                .limit(1)
+
         return {
           template: tmpl,
           exercises: exerciseRows.map((r) => ({
@@ -102,6 +123,7 @@ export const getDashboardDataFn = createServerFn({ method: "GET" }).handler(
             planned: r.planned,
           })),
           workoutLog: logs[0] ?? null,
+          hasLoggedSets: loggedSets.length > 0,
         }
       })
     )

@@ -10,6 +10,7 @@ import {
   program,
   sessionTemplate,
   setLog,
+  userProfile,
   workoutLog,
 } from "../../lib/schema"
 import type {
@@ -43,6 +44,7 @@ export interface PersistedSetLog {
 }
 
 export interface GetSessionDataResult {
+  units: "kg" | "lbs"
   sessionTemplate: SelectSessionTemplate
   program: SelectProgram
   exercises: SessionExerciseRow[]
@@ -86,6 +88,11 @@ export async function getSessionDataOperation(
   database: BetterSQLite3Database<typeof schema>,
   sessionTemplateId: string
 ): Promise<GetSessionDataResult> {
+  const [profile] = await database
+    .select({ units: userProfile.units })
+    .from(userProfile)
+    .orderBy(desc(userProfile.createdAt))
+    .limit(1)
   const templates = await database
     .select()
     .from(sessionTemplate)
@@ -236,6 +243,7 @@ export async function getSessionDataOperation(
   })
 
   return {
+    units: profile?.units ?? "kg",
     sessionTemplate: tmpl,
     program: prog,
     exercises,

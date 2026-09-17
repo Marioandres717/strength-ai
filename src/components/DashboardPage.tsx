@@ -1,5 +1,9 @@
-import { Link } from "@tanstack/react-router"
+import { Link, useRouter } from "@tanstack/react-router"
+import { useState } from "react"
 import { type DashboardState } from "../functions/getDashboardData"
+import { saveUnitsFn } from "../functions/saveUnits"
+import { swapWorkoutDaysFn } from "../functions/swapWorkoutDays"
+import type { WeightUnit } from "../lib/weightUnits"
 import { ProgramHeader } from "./dashboard/ProgramHeader"
 import { NextSessionCard } from "./dashboard/NextSessionCard"
 import { WeekGrid } from "./dashboard/WeekGrid"
@@ -11,6 +15,11 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ data }: DashboardPageProps) {
+  const router = useRouter()
+  const [selectedSessionId, setSelectedSessionId] = useState("")
+  const [targetSessionId, setTargetSessionId] = useState("")
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   if (data.kind === "no_program") {
     return (
       <div className="bg-bg min-h-screen">
@@ -37,6 +46,49 @@ export function DashboardPage({ data }: DashboardPageProps) {
   }
 
   const { profile, program, currentWeek, sessionsThisWeek, nextSession } = data
+  const eligibleSessions = sessionsThisWeek.filter(
+    (session) =>
+      session.workoutLog?.completedAt == null && !session.hasLoggedSets
+  )
+
+  const changeUnits = async (units: WeightUnit) => {
+    if (units === profile.units || saving) return
+    setSaving(true)
+    setActionError(null)
+    try {
+      await saveUnitsFn({ data: { profileId: profile.id, units } })
+      await router.invalidate()
+    } catch {
+      setActionError("Could not save units. Try again.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const swapDays = async () => {
+    if (!selectedSessionId || !targetSessionId || saving) return
+    setSaving(true)
+    setActionError(null)
+    try {
+      await swapWorkoutDaysFn({
+        data: {
+          firstSessionId: selectedSessionId,
+          secondSessionId: targetSessionId,
+        },
+      })
+      setSelectedSessionId("")
+      setTargetSessionId("")
+      await router.invalidate()
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Could not save the swap. Try again."
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const doneSessions = sessionsThisWeek.filter(
     (s) => s.workoutLog?.completedAt != null
@@ -55,6 +107,28 @@ export function DashboardPage({ data }: DashboardPageProps) {
           currentWeek={currentWeek}
           sessionLengthMin={profile.sessionLengthMin}
         />
+
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <span className="text-muted text-sm">Weight units</span>
+          <div
+            role="group"
+            aria-label="Weight units"
+            className="border-border flex rounded-xl border p-1"
+          >
+            {(["kg", "lbs"] as const).map((units) => (
+              <button
+                key={units}
+                type="button"
+                aria-pressed={profile.units === units}
+                disabled={saving}
+                onClick={() => void changeUnits(units)}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold ${profile.units === units ? "bg-accent text-black" : "text-muted"}`}
+              >
+                {units}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="border-border my-8 border-t" />
 
@@ -81,6 +155,69 @@ export function DashboardPage({ data }: DashboardPageProps) {
             This Week
           </p>
           <WeekGrid sessions={sessionsThisWeek} nextSession={nextSession} />
+          {eligibleSessions.length >= 2 && (
+            <div className="mt-4 flex flex-col gap-2">
+              <p className="text-muted text-xs font-semibold tracking-widest uppercase">
+                Swap workout days
+              </p>
+              <div className="flex gap-2">
+                <select
+                  aria-label="First workout"
+                  value={selectedSessionId}
+                  onChange={(event) => setSelectedSessionId(event.target.value)}
+                  className="border-border bg-surface min-w-0 flex-1 rounded-xl border p-2 text-sm text-white"
+                >
+                  <option value="">Choose workout</option>
+                  {eligibleSessions.map((session) => (
+                    <option
+                      key={session.template.id}
+                      value={session.template.id}
+                    >
+                      {session.template.dayLabel}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  aria-label="Second workout"
+                  value={targetSessionId}
+                  onChange={(event) => setTargetSessionId(event.target.value)}
+                  className="border-border bg-surface min-w-0 flex-1 rounded-xl border p-2 text-sm text-white"
+                >
+                  <option value="">Swap with</option>
+                  {eligibleSessions
+                    .filter(
+                      (session) => session.template.id !== selectedSessionId
+                    )
+                    .map((session) => (
+                      <option
+                        key={session.template.id}
+                        value={session.template.id}
+                      >
+                        {session.template.dayLabel}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                disabled={
+                  !selectedSessionId ||
+                  !targetSessionId ||
+                  selectedSessionId === targetSessionId ||
+                  saving
+                }
+                onClick={() => void swapDays()}
+                className="border-border bg-surface rounded-xl border px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Swap days"}
+              </button>
+            </div>
+          )}
+          {actionError && (
+            <p role="alert" className="mt-3 text-sm text-red-300">
+              {actionError}
+            </p>
+          )}
           <WeekProgressBar
             done={doneSessions.length}
             total={sessionsThisWeek.length}

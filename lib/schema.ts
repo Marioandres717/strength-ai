@@ -71,6 +71,7 @@ export const sessionTemplate = sqliteTable("session_template", {
     .notNull()
     .references(() => program.id, { onDelete: "cascade" }),
   weekNumber: integer("week_number").notNull(),
+  orderIndex: integer("order_index").notNull().default(0),
   dayLabel: text("day_label").notNull(),
   focus: text("focus", {
     enum: ["strength", "hypertrophy", "mixed"],

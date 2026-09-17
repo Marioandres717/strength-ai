@@ -2,8 +2,11 @@ import type { LoggedSet, SessionExercise } from "../../stores/sessionStore"
 import { ExerciseRow } from "./ExerciseRow"
 import { RestTimer } from "./RestTimer"
 import { StatChip } from "./StatChip"
+import { displayWeight } from "../../lib/weightUnits"
+import type { WeightUnit } from "../../lib/weightUnits"
 
 interface ExecutionViewProps {
+  units: WeightUnit
   exercises: SessionExercise[]
   currentExerciseIndex: number
   currentSetNumber: number
@@ -16,6 +19,7 @@ interface ExecutionViewProps {
 }
 
 export function ExecutionView({
+  units,
   exercises,
   currentExerciseIndex,
   currentSetNumber,
@@ -82,8 +86,8 @@ export function ExecutionView({
         <div className="mb-5 flex gap-3">
           <StatChip
             label="Target Load"
-            value={currentExercise.planned.loadKg}
-            unit="kg"
+            value={displayWeight(currentExercise.planned.loadKg, units)}
+            unit={units}
           />
           <StatChip
             label="Target Reps"

@@ -19,6 +19,7 @@ vi.mock("@tanstack/react-router", async (importOriginal) => {
   const actual = await importOriginal<typeof TanstackRouter>()
   return {
     ...actual,
+    useRouter: () => ({ invalidate: vi.fn() }),
     Link: ({ children, to }: { children: React.ReactNode; to: string }) => (
       <a href={to}>{children}</a>
     ),
@@ -60,6 +61,7 @@ function makeTemplate(
     id,
     programId: "prog-1",
     weekNumber: 1,
+    orderIndex: 0,
     dayLabel,
     focus: "strength",
     userId: null,

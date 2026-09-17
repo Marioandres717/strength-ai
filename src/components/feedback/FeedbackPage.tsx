@@ -8,17 +8,21 @@ import { Button } from "../ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "../ui/field"
 import { Slider } from "../ui/slider"
 import { Textarea } from "../ui/textarea"
+import { formatWeight } from "../../lib/weightUnits"
+import type { WeightUnit } from "../../lib/weightUnits"
 
 interface FeedbackPageProps {
   workoutLogId: string
   sessionName: string
   progressionChanges: ProgressionChange[]
+  units?: WeightUnit
 }
 
 export function FeedbackPage({
   workoutLogId,
   sessionName,
   progressionChanges,
+  units = "kg",
 }: FeedbackPageProps) {
   const navigate = useNavigate()
   const [fatigue, setFatigue] = useState(3)
@@ -98,7 +102,7 @@ export function FeedbackPage({
                     </p>
                     <div className="flex shrink-0 items-center gap-1.5">
                       <span className="text-muted text-sm tabular-nums">
-                        {change.oldLoadKg} kg
+                        {formatWeight(change.oldLoadKg, units)}
                       </span>
                       <svg
                         className="text-accent h-3.5 w-3.5"
@@ -115,7 +119,7 @@ export function FeedbackPage({
                         />
                       </svg>
                       <span className="text-accent text-sm font-bold tabular-nums">
-                        {change.newLoadKg} kg
+                        {formatWeight(change.newLoadKg, units)}
                       </span>
                     </div>
                   </div>

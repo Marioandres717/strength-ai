@@ -11,8 +11,8 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
-    "dev:debug": "cross-env NODE_OPTIONS=--inspect vite dev --port 3000",
+    "dev": "pnpm db:migrate && vite dev --port 3000",
+    "dev:debug": "pnpm db:migrate && cross-env NODE_OPTIONS=--inspect vite dev --port 3000",
     "build": "vite build",
     "preview": "vite preview",
     "start": "tsx scripts/initialize.ts && srvx serve --prod --host 0.0.0.0 --port 3000 --entry ./dist/server/server.js --static ../client",

@@ -17,6 +17,7 @@ function makeTemplate(
     id: "tmpl-1",
     programId: "prog-1",
     weekNumber: 1,
+    orderIndex: 0,
     dayLabel: "Upper A",
     focus: "strength",
     userId: null,
