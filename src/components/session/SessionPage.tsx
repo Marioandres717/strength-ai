@@ -8,6 +8,7 @@ import {
   completeWorkoutLocally,
   saveRestDeadline,
   loadRun,
+  getLocalRun,
 } from "../../lib/workoutPersistence"
 import type { SetCommit } from "../../lib/workoutPersistence"
 import type { GetSessionDataResult } from "../../functions/getSessionData"
@@ -26,8 +27,8 @@ export interface SessionPersistence {
 }
 const localPersistence: SessionPersistence = {
   prepare: async (run) => {
-    await cacheRun(run)
-    return loadRun(run.workoutLogId)
+    if (!(await getLocalRun(run.workoutLogId))) await cacheRun(run)
+    return loadRun(run.workoutLogId, false)
   },
   commit: commitWorkoutSet,
   complete: completeWorkoutLocally,

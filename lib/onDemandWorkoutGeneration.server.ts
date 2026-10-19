@@ -150,7 +150,7 @@ export function buildGenerationContext(
     ? getOnDemandWorkoutOperation(database, input.regenerateFromId)
     : null
   const history = workoutHistory(database)
-  const units = profile?.units ?? input.units ?? "kg"
+  const units = input.units ?? profile?.units ?? "kg"
   const baselines: OnDemandWorkoutGenerationContext["baselines"] =
     Object.fromEntries(
       library.slice(0, 35).map((e) => [
@@ -222,7 +222,7 @@ export function buildGenerationContext(
   const context: OnDemandWorkoutGenerationContext = {
     constraints,
     profile: {
-      experience: profile?.experience ?? input.experience ?? "beginner",
+      experience: input.experience ?? profile?.experience ?? "beginner",
       units,
       directives: (profile?.customDirectives ?? "").slice(0, 1500),
     },

@@ -74,6 +74,7 @@ export interface SessionRun {
   programName: string | null
   units: "kg" | "lbs"
   startedAt: Date
+  completedAt?: Date | null
   exercises: SessionExercise[]
   persistedSets: PersistedSet[]
   snapshot?: OnDemandWorkoutRunSnapshotV1

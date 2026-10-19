@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm"
 import { createWorkoutTestDb } from "../src/test/workoutDb"
 import {
   generateOnDemandWorkoutOperation,
+  buildGenerationContext,
   getOnDemandWorkoutGenerationOperation,
   listOnDemandWorkoutGenerationsOperation,
   reconcileOnDemandWorkoutGenerations,
@@ -17,6 +18,7 @@ import {
   deleteOnDemandWorkoutOperation,
   editOnDemandWorkoutOperation,
   getWorkoutRunOperation,
+  getOnDemandWorkoutOperation,
   listOnDemandWorkoutsOperation,
   startWorkoutOperation,
 } from "./onDemandWorkouts.server"
@@ -32,6 +34,7 @@ import {
   sessionTemplate,
   setLog,
   workoutLog,
+  userProfile,
 } from "./schema"
 import { workoutHistory } from "./workoutHistory.server"
 
@@ -108,6 +111,44 @@ async function generate() {
 }
 
 describe("generation with real SQLite and the Anthropic boundary", () => {
+  it("uses explicit experience and units and keeps preview units after profile changes", async () => {
+    context.db
+      .insert(userProfile)
+      .values({
+        id: "profile",
+        goal: "both",
+        experience: "advanced",
+        equipment: ["barbell"],
+        sessionsPerWeek: 3,
+        sessionLengthMin: 60,
+        units: "kg",
+      })
+      .run()
+    const ex = context.insertExercise({ name: "Back Squat" })
+    const request = {
+      ...input(),
+      experience: "beginner" as const,
+      units: "lbs" as const,
+    }
+    expect(buildGenerationContext(context.db, request).profile).toMatchObject({
+      experience: "beginner",
+      units: "lbs",
+    })
+    parse.mockResolvedValue({ parsed_output: { result: output(ex.id) } })
+    const result = await generateOnDemandWorkoutOperation(
+      context.db,
+      request,
+      directory
+    )
+    expect(result.status).toBe("saved")
+    if (result.status !== "saved") throw new Error("Generation failed")
+    expect(result.preview?.units).toBe("lbs")
+    context.db.update(userProfile).set({ units: "kg" }).run()
+    expect(
+      getOnDemandWorkoutOperation(context.db, result.onDemandWorkoutId).snapshot
+        .units
+    ).toBe("lbs")
+  })
   it("makes one explicit Sonnet attempt, saves immediately, clamps loads and replays by request ID", async () => {
     vi.stubEnv("AI_PROVIDER", "openai")
     vi.stubEnv("ANTHROPIC_MODEL", "other-model")

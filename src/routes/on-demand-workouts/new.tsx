@@ -25,7 +25,14 @@ export const Route = createFileRoute("/on-demand-workouts/new")({
   component: Component,
 })
 function Component() {
+  const { defaults, source } = Route.useLoaderData()
+  const { from } = Route.useSearch()
   return (
-    <OnDemandWorkoutGeneratePage regenerateFromId={Route.useSearch().from} />
+    <OnDemandWorkoutGeneratePage
+      key={from ?? "new"}
+      defaults={defaults ?? undefined}
+      initialPrompt={source?.prompt.slice(0, 2000)}
+      regenerateFromId={from}
+    />
   )
 }

@@ -33,6 +33,8 @@ export function OnDemandWorkoutGeneratePage({
   regenerateFromId?: string
 }) {
   const [prompt, setPrompt] = useState(initialPrompt ?? ""),
+    [timeOverridden, setTimeOverridden] = useState(false),
+    [equipmentOverridden, setEquipmentOverridden] = useState(false),
     [time, setTime] = useState(String(defaults?.timeMinutes ?? 30)),
     [equipment, setEquipment] = useState<string[]>(
       defaults?.equipment ?? ["dumbbell"]
@@ -163,8 +165,10 @@ export function OnDemandWorkoutGeneratePage({
               onChange={(event) => {
                 setPrompt(event.target.value)
                 const parsed = parseOnDemandWorkoutPrompt(event.target.value)
-                if (parsed.timeMinutes) setTime(String(parsed.timeMinutes))
-                if (parsed.equipment) setEquipment(parsed.equipment)
+                if (!timeOverridden && parsed.timeMinutes)
+                  setTime(String(parsed.timeMinutes))
+                if (!equipmentOverridden && parsed.equipment)
+                  setEquipment(parsed.equipment)
               }}
               placeholder="40 min, dumbbells only, upper body"
             />
@@ -181,7 +185,10 @@ export function OnDemandWorkoutGeneratePage({
               max={120}
               required
               value={time}
-              onChange={(e) => setTime(e.target.value)}
+              onChange={(e) => {
+                setTimeOverridden(true)
+                setTime(e.target.value)
+              }}
             />
           </Field>
           <Field>
@@ -240,13 +247,14 @@ export function OnDemandWorkoutGeneratePage({
                 <input
                   type="checkbox"
                   checked={equipment.includes(key)}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    setEquipmentOverridden(true)
                     setEquipment(
                       e.target.checked
                         ? [...equipment, key]
                         : equipment.filter((k) => k !== key)
                     )
-                  }
+                  }}
                 />
                 {key}
               </label>

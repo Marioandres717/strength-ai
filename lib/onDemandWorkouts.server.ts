@@ -76,7 +76,7 @@ export function getOnDemandWorkoutOperation(
       eq(onDemandWorkoutGenerationRequest.id, definition.generationRequestId)
     )
     .get()
-  const units = profile?.units ?? request?.context.profile.units ?? "kg"
+  const units = request?.context.profile.units ?? profile?.units ?? "kg"
   const history = workoutHistory(database)
   const rows = database
     .select({ prescription: onDemandWorkoutExercise, exercise })
@@ -452,6 +452,7 @@ export function getWorkoutRunOperation(
       programName: null,
       units: snapshot.units,
       startedAt: log.startedAt,
+      completedAt: log.completedAt,
       persistedSets,
       snapshot,
       exercises: rows.map(({ p, exercise: ex }) => {
@@ -502,6 +503,7 @@ export function getWorkoutRunOperation(
     programName: prog.name,
     units: profile?.units ?? "kg",
     startedAt: log.startedAt,
+    completedAt: log.completedAt,
     persistedSets,
     exercises: rows.map(({ p, exercise: ex }) => {
       const prior = history.latest.get(ex.id)

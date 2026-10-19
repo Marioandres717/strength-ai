@@ -118,17 +118,28 @@ export async function cacheDefinition(preview: OnDemandWorkoutPreview) {
 export async function loadDefinition(id: string) {
   if ((await repositoryGet<CachedDefinition>("definitions", id))?.tombstone)
     throw new Error("This workout has been deleted.")
+  let preview: OnDemandWorkoutPreview | null
   try {
-    const preview = await getOnDemandWorkoutFn({
+    preview = await getOnDemandWorkoutFn({
       data: { onDemandWorkoutId: id },
     })
-    await cacheDefinition(preview)
-    return refreshLocalLoads(preview)
   } catch (error) {
     const cached = await repositoryGet<CachedDefinition>("definitions", id)
     if (cached && !cached.tombstone) return refreshLocalLoads(cached.preview)
     throw error
   }
+  if (!preview) {
+    await repositoryTransaction(["definitions"], async (tx) => {
+      const store = tx.objectStore("definitions")
+      const cached = (await idbRequest(store.get(id))) as
+        | CachedDefinition
+        | undefined
+      if (cached) store.put({ ...cached, tombstone: true }, id)
+    })
+    throw new Error("This workout has been deleted or is unavailable.")
+  }
+  await cacheDefinition(preview)
+  return refreshLocalLoads(preview)
 }
 async function refreshLocalLoads(
   preview: OnDemandWorkoutPreview
@@ -227,11 +238,12 @@ export async function loadLibrary(cursor?: {
       })
     // Full definitions, not list titles, make a workout runnable offline.
     await Promise.allSettled(
-      page.items.map(async (item) =>
-        cacheDefinition(
-          await getOnDemandWorkoutFn({ data: { onDemandWorkoutId: item.id } })
-        )
-      )
+      page.items.map(async (item) => {
+        const preview = await getOnDemandWorkoutFn({
+          data: { onDemandWorkoutId: item.id },
+        })
+        if (preview) await cacheDefinition(preview)
+      })
     )
     return mergeLocalCounts(page)
   } catch (error) {
@@ -294,28 +306,38 @@ async function mergeLocalCounts(page: OnDemandWorkoutLibraryPage) {
   }
 }
 export async function cacheRun(run: SessionRun) {
-  const { persistedSets: _persisted, startedAt, ...staticRun } = run
+  const {
+    persistedSets: _persisted,
+    startedAt,
+    completedAt,
+    ...staticRun
+  } = run
   await repositoryTransaction(["runs", "sets"], async (tx) => {
     const existing = (await idbRequest(
       tx.objectStore("runs").get(run.workoutLogId)
     )) as LocalRun | undefined
-    if (!existing)
-      tx.objectStore("runs").put(
-        {
-          run: { ...staticRun, startedAt: new Date(startedAt).toISOString() },
-          completedAt: null,
-          acknowledged: true,
-          completionAcknowledged: false,
-          restDeadline: null,
-          restSeconds: 0,
-          returnTo: run.source.kind === "planned" ? "/" : "/on-demand-workouts",
-        } satisfies LocalRun,
-        run.workoutLogId
-      )
+    const row: LocalRun = existing ?? {
+      run: { ...staticRun, startedAt: new Date(startedAt).toISOString() },
+      completedAt: null,
+      acknowledged: true,
+      completionAcknowledged: false,
+      restDeadline: null,
+      restSeconds: 0,
+      returnTo: run.source.kind === "planned" ? "/" : "/on-demand-workouts",
+    }
+    row.acknowledged = true
+    if (completedAt) {
+      row.completedAt = new Date(completedAt).toISOString()
+      row.completionAcknowledged = true
+      row.restDeadline = null
+    }
     for (const s of run.persistedSets) {
       const key = `${run.workoutLogId}:${setKey(s.prescriptionRef, s.setNumber)}`
-      const prior: unknown = await idbRequest(tx.objectStore("sets").get(key))
-      if (!prior)
+      const prior = (await idbRequest(tx.objectStore("sets").get(key))) as
+        | LocalSet
+        | undefined
+      // A pending local write owns its values until the outbox is acknowledged.
+      if (!prior || prior.acknowledged)
         tx.objectStore("sets").put(
           {
             ...s,
@@ -325,12 +347,17 @@ export async function cacheRun(run: SessionRun) {
           } satisfies LocalSet,
           key
         )
+      if (!prior && existing) row.restDeadline = null
     }
+    tx.objectStore("runs").put(row, run.workoutLogId)
   })
 }
 export async function startLocalWorkout(
   preview: OnDemandWorkoutPreview
 ): Promise<string> {
+  // Check authoritative availability before starting from a previously open preview.
+  // A transport failure still permits a durable offline start.
+  if (navigator.onLine) await loadDefinition(preview.id)
   const cached = await repositoryGet<CachedDefinition>(
     "definitions",
     preview.id
@@ -389,10 +416,16 @@ export async function unfinishedRun(definitionId: string) {
       (a, b) => Date.parse(b.run.startedAt) - Date.parse(a.run.startedAt)
     )[0]?.run.workoutLogId
 }
-export async function loadRun(id: string): Promise<SessionRun> {
+export async function loadRun(id: string, refresh = true): Promise<SessionRun> {
   let local = await repositoryGet<LocalRun>("runs", id)
-  if (!local) {
-    await cacheRun(await getWorkoutRunFn({ data: { workoutLogId: id } }))
+  if (!local || (refresh && local.acknowledged && navigator.onLine)) {
+    try {
+      const remote = await getWorkoutRunFn({ data: { workoutLogId: id } })
+      await cacheRun(remote)
+    } catch (error) {
+      if (!local) throw error
+      // Cached runs and pending commands remain usable without a connection.
+    }
     local = await repositoryGet<LocalRun>("runs", id)
   }
   if (!local)
