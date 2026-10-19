@@ -3,7 +3,6 @@ import type { WeightUnit } from "../src/lib/weightUnits"
 import type { LoadBasis } from "../src/types/session"
 import { parseRepRangeLower } from "./rules"
 
-export const LOAD_POLICY_VERSION = 1
 export interface LoadHistory {
   workoutLogId: string
   completedAt: string

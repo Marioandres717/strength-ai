@@ -48,7 +48,7 @@ async function lease(): Promise<boolean> {
   })
 }
 
-export async function syncWorkouts() {
+async function syncWorkouts() {
   if (!navigator.onLine) return
   if (running) {
     rerunRequested = true

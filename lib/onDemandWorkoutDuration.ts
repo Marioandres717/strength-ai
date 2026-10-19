@@ -1,6 +1,5 @@
 import { parseRepRangeUpper } from "./rules"
 
-export const DURATION_POLICY_VERSION = 1
 export function estimateOnDemandWorkoutDuration(
   exercises: { sets: number; repRange: string; restSeconds: number }[]
 ): number {

@@ -1,9 +1,5 @@
 import { saveFeedbackFn } from "../functions/saveFeedback"
-import type {
-  SessionRun,
-  PrescriptionRef,
-  SessionExercise,
-} from "../types/session"
+import type { SessionRun, PrescriptionRef } from "../types/session"
 import { setKey } from "../types/session"
 import type {
   OnDemandWorkoutPreview,
@@ -77,11 +73,7 @@ export interface CachedDefinition {
   cachedAt: number
 }
 
-export function queueCommand(
-  tx: IDBTransaction,
-  key: string,
-  command: OutboxCommand
-) {
+function queueCommand(tx: IDBTransaction, key: string, command: OutboxCommand) {
   tx.objectStore("outbox").put(
     {
       key,
@@ -617,4 +609,3 @@ export async function retainGenerationRequest(
 export async function getLocalRun(id: string) {
   return repositoryGet<LocalRun>("runs", id)
 }
-export type { SessionExercise }

@@ -5,7 +5,7 @@ import type {
   OnDemandWorkoutRunSnapshotV1,
 } from "./session"
 
-export const focusSchema = z.enum(["strength", "hypertrophy", "mixed"])
+const focusSchema = z.enum(["strength", "hypertrophy", "mixed"])
 export const constraintsSchema = z.object({
   timeMinutes: z.number().int().min(10).max(120),
   equipment: z.array(z.string().min(1).max(80)).max(35),
@@ -80,7 +80,7 @@ export interface OnDemandWorkoutPreview {
   snapshot: OnDemandWorkoutRunSnapshotV1
 }
 
-export interface OnDemandWorkoutLibraryItem {
+interface OnDemandWorkoutLibraryItem {
   id: string
   revisionId: string
   title: string

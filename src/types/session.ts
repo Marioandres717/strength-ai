@@ -1,4 +1,4 @@
-export type SessionSource =
+type SessionSource =
   | { kind: "planned"; sessionTemplateId: string; programId: string }
   | {
       kind: "on_demand_workout"
@@ -28,7 +28,7 @@ export interface PriorPerformance {
 }
 
 export type LoadBasis = "history" | "conservative_estimate" | "bodyweight"
-export interface SessionPrescription {
+interface SessionPrescription {
   ref: PrescriptionRef
   orderIndex: number
   sets: number
