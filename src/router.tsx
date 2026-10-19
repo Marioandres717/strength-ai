@@ -1,9 +1,11 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router"
 import { routeTree } from "./routeTree.gen"
+import { WorkoutUnavailable } from "./components/WorkoutUnavailable"
 
 export function getRouter() {
   const router = createTanStackRouter({
     routeTree,
+    defaultErrorComponent: WorkoutUnavailable,
     scrollRestoration: true,
     defaultPreload: "intent",
     defaultPreloadStaleTime: 0,

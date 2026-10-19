@@ -10,3 +10,21 @@ startTransition(() => {
     </StrictMode>
   )
 })
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        if (registration.waiting)
+          window.dispatchEvent(new Event("strength-update-waiting"))
+        registration.addEventListener("updatefound", () => {
+          registration.installing?.addEventListener("statechange", () => {
+            if (registration.waiting)
+              window.dispatchEvent(new Event("strength-update-waiting"))
+          })
+        })
+      })
+      .catch(() => undefined)
+  })
+}

@@ -28,7 +28,10 @@ it("shows pounds for prior performance and increments by five pounds", () => {
   render(
     <SetDetailView
       exercise={{
-        planned,
+        prescription: {
+          ...planned,
+          ref: { kind: "planned", plannedExerciseId: planned.id },
+        },
         exercise,
         priorPerformance: {
           weightKg: 100,

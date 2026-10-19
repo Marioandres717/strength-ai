@@ -2,6 +2,8 @@
 
 Architecture proposal, based on the repository inspected on October 19, 2026. This document specifies future work; it does not implement the feature or modify the live database.
 
+Implementation and operating instructions now accompany this design in [on-demand-workouts-operations.md](on-demand-workouts-operations.md). The proposal and its original verification note below remain the design baseline; implementation tests live beside the relevant operations and in `e2e/on-demand-workouts.spec.ts`.
+
 Naming convention: **on-demand workout** in product copy, `on_demand_workout` for database tables and source discriminators, `onDemandWorkout` / `OnDemandWorkout` for TypeScript identifiers, and `on-demand-workouts` for library URLs.
 
 ## 1. Recommendation and repository findings

@@ -40,8 +40,9 @@ export function SetDetailView({
   onRirChange,
   onComplete,
 }: SetDetailViewProps) {
-  const { planned, priorPerformance } = exercise
-  const isLastSet = setNumber >= totalSets
+  const { prescription: planned, priorPerformance } = exercise
+  const isLastSet =
+    setNumber >= totalSets && exerciseIndex === totalExercises - 1
   const restMins = Math.floor(planned.restSeconds / 60)
   const restSecs = planned.restSeconds % 60
   const restLabel =
@@ -85,6 +86,12 @@ export function SetDetailView({
       </div>
 
       <div className="flex-1 px-5 pt-5">
+        {planned.loadBasis === "conservative_estimate" && (
+          <p className="text-muted mb-4 text-sm">
+            Conservative starting estimate. Adjust the load to meet your target
+            RIR.
+          </p>
+        )}
         {/* Prior performance */}
         {priorPerformance && (
           <div className="bg-surface/60 mb-4 rounded-xl px-4 py-3">

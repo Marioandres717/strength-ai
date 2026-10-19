@@ -1,0 +1,1120 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "87c864a0-4333-4459-ba75-4f6583f21275",
+  "prevId": "a074310e-9dbe-4676-a6a7-b6ef7ddc1f30",
+  "tables": {
+    "exercise": {
+      "name": "exercise",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "movement": {
+          "name": "movement",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "primary_muscles": {
+          "name": "primary_muscles",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "equipment": {
+          "name": "equipment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "on_demand_workout": {
+      "name": "on_demand_workout",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generation_request_id": {
+          "name": "generation_request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "on_demand_workout_request": {
+          "name": "on_demand_workout_request",
+          "columns": ["generation_request_id"],
+          "isUnique": true
+        },
+        "on_demand_workout_library": {
+          "name": "on_demand_workout_library",
+          "columns": ["user_id", "deleted_at", "created_at", "id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "on_demand_workout_generation_request_id_on_demand_workout_generation_request_id_fk": {
+          "name": "on_demand_workout_generation_request_id_on_demand_workout_generation_request_id_fk",
+          "tableFrom": "on_demand_workout",
+          "tableTo": "on_demand_workout_generation_request",
+          "columnsFrom": ["generation_request_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "on_demand_workout_exercise": {
+      "name": "on_demand_workout_exercise",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "on_demand_workout_revision_id": {
+          "name": "on_demand_workout_revision_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "exercise_id": {
+          "name": "exercise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order_index": {
+          "name": "order_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sets": {
+          "name": "sets",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rep_range": {
+          "name": "rep_range",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "load_kg": {
+          "name": "load_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "load_basis": {
+          "name": "load_basis",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "load_history_at": {
+          "name": "load_history_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rir_target": {
+          "name": "rir_target",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rest_seconds": {
+          "name": "rest_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "coach_note": {
+          "name": "coach_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "on_demand_exercise_order": {
+          "name": "on_demand_exercise_order",
+          "columns": ["on_demand_workout_revision_id", "order_index"],
+          "isUnique": true
+        },
+        "on_demand_exercise_history": {
+          "name": "on_demand_exercise_history",
+          "columns": ["exercise_id", "on_demand_workout_revision_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "on_demand_workout_exercise_on_demand_workout_revision_id_on_demand_workout_revision_id_fk": {
+          "name": "on_demand_workout_exercise_on_demand_workout_revision_id_on_demand_workout_revision_id_fk",
+          "tableFrom": "on_demand_workout_exercise",
+          "tableTo": "on_demand_workout_revision",
+          "columnsFrom": ["on_demand_workout_revision_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "on_demand_workout_exercise_exercise_id_exercise_id_fk": {
+          "name": "on_demand_workout_exercise_exercise_id_exercise_id_fk",
+          "tableFrom": "on_demand_workout_exercise",
+          "tableTo": "exercise",
+          "columnsFrom": ["exercise_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "on_demand_order": {
+          "name": "on_demand_order",
+          "value": "\"on_demand_workout_exercise\".\"order_index\" >= 0"
+        },
+        "on_demand_sets": {
+          "name": "on_demand_sets",
+          "value": "\"on_demand_workout_exercise\".\"sets\" between 1 and 10"
+        },
+        "on_demand_load": {
+          "name": "on_demand_load",
+          "value": "\"on_demand_workout_exercise\".\"load_kg\" between 0 and 500"
+        },
+        "on_demand_rir": {
+          "name": "on_demand_rir",
+          "value": "\"on_demand_workout_exercise\".\"rir_target\" between 0 and 5"
+        },
+        "on_demand_rest": {
+          "name": "on_demand_rest",
+          "value": "\"on_demand_workout_exercise\".\"rest_seconds\" between 30 and 600"
+        },
+        "on_demand_load_basis": {
+          "name": "on_demand_load_basis",
+          "value": "\"on_demand_workout_exercise\".\"load_basis\" in ('history','conservative_estimate','bodyweight')"
+        }
+      }
+    },
+    "on_demand_workout_generation_request": {
+      "name": "on_demand_workout_generation_request",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "request_hash": {
+          "name": "request_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "input": {
+          "name": "input",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "context": {
+          "name": "context",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quota_day": {
+          "name": "quota_day",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "call_started_at": {
+          "name": "call_started_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "error_code": {
+          "name": "error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "on_demand_request_quota": {
+          "name": "on_demand_request_quota",
+          "columns": ["user_id", "quota_day", "created_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "on_demand_request_status": {
+          "name": "on_demand_request_status",
+          "value": "\"on_demand_workout_generation_request\".\"status\" in ('reserved','calling','save_pending','saved','failed','unknown')"
+        }
+      }
+    },
+    "on_demand_workout_revision": {
+      "name": "on_demand_workout_revision",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "on_demand_workout_id": {
+          "name": "on_demand_workout_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "revision_number": {
+          "name": "revision_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "prompt": {
+          "name": "prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "constraints": {
+          "name": "constraints",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "focus": {
+          "name": "focus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "estimated_duration_seconds": {
+          "name": "estimated_duration_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reasoning": {
+          "name": "reasoning",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "edit_kind": {
+          "name": "edit_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "on_demand_revision_number": {
+          "name": "on_demand_revision_number",
+          "columns": ["on_demand_workout_id", "revision_number"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "on_demand_workout_revision_on_demand_workout_id_on_demand_workout_id_fk": {
+          "name": "on_demand_workout_revision_on_demand_workout_id_on_demand_workout_id_fk",
+          "tableFrom": "on_demand_workout_revision",
+          "tableTo": "on_demand_workout",
+          "columnsFrom": ["on_demand_workout_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "on_demand_revision_positive": {
+          "name": "on_demand_revision_positive",
+          "value": "\"on_demand_workout_revision\".\"revision_number\" >= 1"
+        },
+        "on_demand_duration_positive": {
+          "name": "on_demand_duration_positive",
+          "value": "\"on_demand_workout_revision\".\"estimated_duration_seconds\" > 0"
+        },
+        "on_demand_focus": {
+          "name": "on_demand_focus",
+          "value": "\"on_demand_workout_revision\".\"focus\" in ('strength','hypertrophy','mixed')"
+        },
+        "on_demand_edit_kind": {
+          "name": "on_demand_edit_kind",
+          "value": "\"on_demand_workout_revision\".\"edit_kind\" in ('generated','preview_edit')"
+        }
+      }
+    },
+    "planned_exercise": {
+      "name": "planned_exercise",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_template_id": {
+          "name": "session_template_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "exercise_id": {
+          "name": "exercise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order_index": {
+          "name": "order_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sets": {
+          "name": "sets",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rep_range": {
+          "name": "rep_range",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "load_kg": {
+          "name": "load_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rir_target": {
+          "name": "rir_target",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rest_seconds": {
+          "name": "rest_seconds",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "coach_note": {
+          "name": "coach_note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "planned_exercise_session_template_id_session_template_id_fk": {
+          "name": "planned_exercise_session_template_id_session_template_id_fk",
+          "tableFrom": "planned_exercise",
+          "tableTo": "session_template",
+          "columnsFrom": ["session_template_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "planned_exercise_exercise_id_exercise_id_fk": {
+          "name": "planned_exercise_exercise_id_exercise_id_fk",
+          "tableFrom": "planned_exercise",
+          "tableTo": "exercise",
+          "columnsFrom": ["exercise_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "program": {
+      "name": "program",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "weeks_total": {
+          "name": "weeks_total",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sessions_per_week": {
+          "name": "sessions_per_week",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'active'"
+        },
+        "ai_rationale": {
+          "name": "ai_rationale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "session_template": {
+      "name": "session_template",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "program_id": {
+          "name": "program_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "week_number": {
+          "name": "week_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "order_index": {
+          "name": "order_index",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "day_label": {
+          "name": "day_label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "focus": {
+          "name": "focus",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "session_template_program_id_program_id_fk": {
+          "name": "session_template_program_id_program_id_fk",
+          "tableFrom": "session_template",
+          "tableTo": "program",
+          "columnsFrom": ["program_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "set_log": {
+      "name": "set_log",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "workout_log_id": {
+          "name": "workout_log_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "planned_exercise_id": {
+          "name": "planned_exercise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "on_demand_workout_exercise_id": {
+          "name": "on_demand_workout_exercise_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "set_number": {
+          "name": "set_number",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "weight_kg": {
+          "name": "weight_kg",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "reps": {
+          "name": "reps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rir_actual": {
+          "name": "rir_actual",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "logged_at": {
+          "name": "logged_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        }
+      },
+      "indexes": {
+        "set_log_workout": {
+          "name": "set_log_workout",
+          "columns": ["workout_log_id"],
+          "isUnique": false
+        },
+        "set_log_on_demand_key": {
+          "name": "set_log_on_demand_key",
+          "columns": [
+            "workout_log_id",
+            "on_demand_workout_exercise_id",
+            "set_number"
+          ],
+          "isUnique": true,
+          "where": "\"set_log\".\"on_demand_workout_exercise_id\" is not null"
+        }
+      },
+      "foreignKeys": {
+        "set_log_workout_log_id_workout_log_id_fk": {
+          "name": "set_log_workout_log_id_workout_log_id_fk",
+          "tableFrom": "set_log",
+          "tableTo": "workout_log",
+          "columnsFrom": ["workout_log_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "set_log_planned_exercise_id_planned_exercise_id_fk": {
+          "name": "set_log_planned_exercise_id_planned_exercise_id_fk",
+          "tableFrom": "set_log",
+          "tableTo": "planned_exercise",
+          "columnsFrom": ["planned_exercise_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "set_log_on_demand_workout_exercise_id_on_demand_workout_exercise_id_fk": {
+          "name": "set_log_on_demand_workout_exercise_id_on_demand_workout_exercise_id_fk",
+          "tableFrom": "set_log",
+          "tableTo": "on_demand_workout_exercise",
+          "columnsFrom": ["on_demand_workout_exercise_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "set_log_exactly_one_source": {
+          "name": "set_log_exactly_one_source",
+          "value": "(\"set_log\".\"planned_exercise_id\" is not null and \"set_log\".\"on_demand_workout_exercise_id\" is null) or (\"set_log\".\"planned_exercise_id\" is null and \"set_log\".\"on_demand_workout_exercise_id\" is not null)"
+        }
+      }
+    },
+    "user_profile": {
+      "name": "user_profile",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "goal": {
+          "name": "goal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "experience": {
+          "name": "experience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "equipment": {
+          "name": "equipment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sessions_per_week": {
+          "name": "sessions_per_week",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_length_min": {
+          "name": "session_length_min",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "custom_directives": {
+          "name": "custom_directives",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "units": {
+          "name": "units",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'kg'"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "workout_log": {
+      "name": "workout_log",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_template_id": {
+          "name": "session_template_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "on_demand_workout_revision_id": {
+          "name": "on_demand_workout_revision_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "run_snapshot": {
+          "name": "run_snapshot",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fatigue_rating": {
+          "name": "fatigue_rating",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(strftime('%s', 'now'))"
+        }
+      },
+      "indexes": {
+        "workout_planned_started": {
+          "name": "workout_planned_started",
+          "columns": ["session_template_id", "started_at"],
+          "isUnique": false
+        },
+        "workout_on_demand_completed": {
+          "name": "workout_on_demand_completed",
+          "columns": ["on_demand_workout_revision_id", "completed_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "workout_log_session_template_id_session_template_id_fk": {
+          "name": "workout_log_session_template_id_session_template_id_fk",
+          "tableFrom": "workout_log",
+          "tableTo": "session_template",
+          "columnsFrom": ["session_template_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "workout_log_on_demand_workout_revision_id_on_demand_workout_revision_id_fk": {
+          "name": "workout_log_on_demand_workout_revision_id_on_demand_workout_revision_id_fk",
+          "tableFrom": "workout_log",
+          "tableTo": "on_demand_workout_revision",
+          "columnsFrom": ["on_demand_workout_revision_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "workout_log_exactly_one_source": {
+          "name": "workout_log_exactly_one_source",
+          "value": "(\"workout_log\".\"session_template_id\" is not null and \"workout_log\".\"on_demand_workout_revision_id\" is null) or (\"workout_log\".\"session_template_id\" is null and \"workout_log\".\"on_demand_workout_revision_id\" is not null)"
+        },
+        "workout_log_on_demand_workout_snapshot": {
+          "name": "workout_log_on_demand_workout_snapshot",
+          "value": "(\"workout_log\".\"on_demand_workout_revision_id\" is null and \"workout_log\".\"run_snapshot\" is null) or (\"workout_log\".\"on_demand_workout_revision_id\" is not null and \"workout_log\".\"run_snapshot\" is not null and json_valid(\"workout_log\".\"run_snapshot\"))"
+        }
+      }
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

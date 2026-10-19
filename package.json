@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "pnpm db:migrate && vite dev --port 3000",
     "dev:debug": "pnpm db:migrate && cross-env NODE_OPTIONS=--inspect vite dev --port 3000",
-    "build": "vite build",
+    "build": "vite build && tsx scripts/build-offline.ts",
     "preview": "vite preview",
     "start": "tsx scripts/initialize.ts && srvx serve --prod --host 0.0.0.0 --port 3000 --entry ./dist/server/server.js --static ../client",
     "start:e2e": "cross-env STRENGTH_AI_E2E=1 DATABASE_PATH=test-results/e2e/strength.db tsx scripts/initialize.ts && cross-env STRENGTH_AI_E2E=1 DATABASE_PATH=test-results/e2e/strength.db srvx serve --prod --host 127.0.0.1 --port 3100 --entry ./dist/server/server.js --static ../client",
@@ -38,7 +38,8 @@
     "db:backup": "tsx scripts/backup.ts",
     "knip": "knip",
     "validate": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test run",
-    "prepare": "lefthook install --reset-hooks-path"
+    "prepare": "lefthook install --reset-hooks-path",
+    "e2e:dev": "playwright test --config playwright.dev.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",

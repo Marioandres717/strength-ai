@@ -26,6 +26,13 @@ export default function Header() {
         >
           Today
         </Link>
+        <Link
+          to="/on-demand-workouts"
+          className="text-muted flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold"
+          activeProps={{ className: "bg-surface-selected text-accent" }}
+        >
+          Workouts
+        </Link>
       </nav>
     </header>
   )

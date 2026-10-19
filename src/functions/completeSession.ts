@@ -10,9 +10,15 @@ export type {
 
 const inputSchema = z.object({
   workoutLogId: z.string().min(1),
-  sessionTemplateId: z.string().min(1),
+  sessionTemplateId: z.string().min(1).optional(),
+  completedAt: z.iso.datetime({ offset: true }).optional(),
 })
 
 export const completeSessionFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
-  .handler(({ data }) => completeSessionOperation(db, data))
+  .handler(({ data }) =>
+    completeSessionOperation(db, {
+      ...data,
+      completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+    })
+  )

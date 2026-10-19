@@ -8,6 +8,7 @@ import testingLibrary from "eslint-plugin-testing-library"
 import prettier from "eslint-config-prettier"
 
 export default [
+  { ignores: ["test-results/**", "playwright-report/**"] },
   // Base JavaScript rules
   js.configs.recommended,
 
@@ -63,7 +64,11 @@ export default [
 
   // Testing rules
   {
-    files: ["**/*.test.{ts,tsx}", "**/__tests__/**/*.{ts,tsx}", "src/test/**/*.{ts,tsx}"],
+    files: [
+      "**/*.test.{ts,tsx}",
+      "**/__tests__/**/*.{ts,tsx}",
+      "src/test/**/*.{ts,tsx}",
+    ],
     plugins: {
       "testing-library": testingLibrary,
     },

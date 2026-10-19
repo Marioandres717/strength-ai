@@ -14,7 +14,11 @@ import { Route as HealthzRouteImport } from './routes/healthz'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PlanRouteImport } from './routes/plan'
 import { Route as FeedbackIdRouteImport } from './routes/feedback/$id'
+import { Route as OnDemandWorkoutsIndexRouteImport } from './routes/on-demand-workouts/index'
+import { Route as OnDemandWorkoutsIdRouteImport } from './routes/on-demand-workouts/$id'
+import { Route as OnDemandWorkoutsNewRouteImport } from './routes/on-demand-workouts/new'
 import { Route as SessionIdRouteImport } from './routes/session/$id'
+import { Route as WorkoutIdRouteImport } from './routes/workout/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,9 +45,29 @@ const FeedbackIdRoute = FeedbackIdRouteImport.update({
   path: '/feedback/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnDemandWorkoutsIndexRoute = OnDemandWorkoutsIndexRouteImport.update({
+  id: '/on-demand-workouts/',
+  path: '/on-demand-workouts/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnDemandWorkoutsIdRoute = OnDemandWorkoutsIdRouteImport.update({
+  id: '/on-demand-workouts/$id',
+  path: '/on-demand-workouts/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnDemandWorkoutsNewRoute = OnDemandWorkoutsNewRouteImport.update({
+  id: '/on-demand-workouts/new',
+  path: '/on-demand-workouts/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SessionIdRoute = SessionIdRouteImport.update({
   id: '/session/$id',
   path: '/session/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkoutIdRoute = WorkoutIdRouteImport.update({
+  id: '/workout/$id',
+  path: '/workout/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -53,7 +77,11 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
   '/feedback/$id': typeof FeedbackIdRoute
+  '/on-demand-workouts/$id': typeof OnDemandWorkoutsIdRoute
+  '/on-demand-workouts/new': typeof OnDemandWorkoutsNewRoute
   '/session/$id': typeof SessionIdRoute
+  '/workout/$id': typeof WorkoutIdRoute
+  '/on-demand-workouts/': typeof OnDemandWorkoutsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +89,11 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
   '/feedback/$id': typeof FeedbackIdRoute
+  '/on-demand-workouts/$id': typeof OnDemandWorkoutsIdRoute
+  '/on-demand-workouts/new': typeof OnDemandWorkoutsNewRoute
   '/session/$id': typeof SessionIdRoute
+  '/workout/$id': typeof WorkoutIdRoute
+  '/on-demand-workouts': typeof OnDemandWorkoutsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,7 +102,11 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/plan': typeof PlanRoute
   '/feedback/$id': typeof FeedbackIdRoute
+  '/on-demand-workouts/$id': typeof OnDemandWorkoutsIdRoute
+  '/on-demand-workouts/new': typeof OnDemandWorkoutsNewRoute
   '/session/$id': typeof SessionIdRoute
+  '/workout/$id': typeof WorkoutIdRoute
+  '/on-demand-workouts/': typeof OnDemandWorkoutsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,7 +116,11 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/plan'
     | '/feedback/$id'
+    | '/on-demand-workouts/$id'
+    | '/on-demand-workouts/new'
     | '/session/$id'
+    | '/workout/$id'
+    | '/on-demand-workouts/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -88,7 +128,11 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/plan'
     | '/feedback/$id'
+    | '/on-demand-workouts/$id'
+    | '/on-demand-workouts/new'
     | '/session/$id'
+    | '/workout/$id'
+    | '/on-demand-workouts'
   id:
     | '__root__'
     | '/'
@@ -96,7 +140,11 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/plan'
     | '/feedback/$id'
+    | '/on-demand-workouts/$id'
+    | '/on-demand-workouts/new'
     | '/session/$id'
+    | '/workout/$id'
+    | '/on-demand-workouts/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -105,7 +153,11 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   PlanRoute: typeof PlanRoute
   FeedbackIdRoute: typeof FeedbackIdRoute
+  OnDemandWorkoutsIdRoute: typeof OnDemandWorkoutsIdRoute
+  OnDemandWorkoutsNewRoute: typeof OnDemandWorkoutsNewRoute
   SessionIdRoute: typeof SessionIdRoute
+  WorkoutIdRoute: typeof WorkoutIdRoute
+  OnDemandWorkoutsIndexRoute: typeof OnDemandWorkoutsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -145,11 +197,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedbackIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/on-demand-workouts/': {
+      id: '/on-demand-workouts/'
+      path: '/on-demand-workouts'
+      fullPath: '/on-demand-workouts/'
+      preLoaderRoute: typeof OnDemandWorkoutsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/on-demand-workouts/$id': {
+      id: '/on-demand-workouts/$id'
+      path: '/on-demand-workouts/$id'
+      fullPath: '/on-demand-workouts/$id'
+      preLoaderRoute: typeof OnDemandWorkoutsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/on-demand-workouts/new': {
+      id: '/on-demand-workouts/new'
+      path: '/on-demand-workouts/new'
+      fullPath: '/on-demand-workouts/new'
+      preLoaderRoute: typeof OnDemandWorkoutsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/session/$id': {
       id: '/session/$id'
       path: '/session/$id'
       fullPath: '/session/$id'
       preLoaderRoute: typeof SessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workout/$id': {
+      id: '/workout/$id'
+      path: '/workout/$id'
+      fullPath: '/workout/$id'
+      preLoaderRoute: typeof WorkoutIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -161,7 +241,11 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   PlanRoute: PlanRoute,
   FeedbackIdRoute: FeedbackIdRoute,
+  OnDemandWorkoutsIdRoute: OnDemandWorkoutsIdRoute,
+  OnDemandWorkoutsNewRoute: OnDemandWorkoutsNewRoute,
   SessionIdRoute: SessionIdRoute,
+  WorkoutIdRoute: WorkoutIdRoute,
+  OnDemandWorkoutsIndexRoute: OnDemandWorkoutsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

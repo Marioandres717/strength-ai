@@ -7,6 +7,10 @@ import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import * as schema from "../../lib/schema"
 import {
   exercise,
+  onDemandWorkout,
+  onDemandWorkoutRevision,
+  onDemandWorkoutExercise,
+  onDemandWorkoutGenerationRequest,
   plannedExercise,
   program,
   sessionTemplate,
@@ -78,6 +82,10 @@ function resetMutableData(database: E2EDatabase["db"]): void {
   database.transaction((tx) => {
     tx.delete(setLog).run()
     tx.delete(workoutLog).run()
+    tx.delete(onDemandWorkoutExercise).run()
+    tx.delete(onDemandWorkoutRevision).run()
+    tx.delete(onDemandWorkout).run()
+    tx.delete(onDemandWorkoutGenerationRequest).run()
     tx.delete(plannedExercise).run()
     tx.delete(sessionTemplate).run()
     tx.delete(program).run()

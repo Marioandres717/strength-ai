@@ -1,3 +1,4 @@
+import { prescriptionId } from "../../types/session"
 import type { LoggedSet, SessionExercise } from "../../stores/sessionStore"
 import { ExerciseRow } from "./ExerciseRow"
 import { RestTimer } from "./RestTimer"
@@ -42,7 +43,7 @@ export function ExecutionView({
         <div className="border-border border-b px-5">
           {completedExercises.map((exercise, index) => (
             <ExerciseRow
-              key={exercise.planned.id}
+              key={prescriptionId(exercise.prescription.ref)}
               sessionExercise={exercise}
               status="completed"
               index={index}
@@ -53,13 +54,13 @@ export function ExecutionView({
 
       <div className="border-accent bg-surface mx-4 mt-4 rounded-2xl border p-5">
         <p className="text-muted mb-1 text-xs font-semibold">
-          Set {currentSetNumber} of {currentExercise.planned.sets}
+          Set {currentSetNumber} of {currentExercise.prescription.sets}
         </p>
         <h2 className="mb-4 text-2xl leading-tight font-bold text-white">
           {currentExercise.exercise.name}
         </h2>
 
-        {currentExercise.planned.coachNote && (
+        {currentExercise.prescription.coachNote && (
           <div className="bg-accent/10 border-accent/20 mb-4 rounded-xl border px-4 py-2.5">
             <div className="flex items-start gap-2">
               <svg
@@ -77,7 +78,7 @@ export function ExecutionView({
                 />
               </svg>
               <p className="text-sm text-white">
-                {currentExercise.planned.coachNote}
+                {currentExercise.prescription.coachNote}
               </p>
             </div>
           </div>
@@ -86,16 +87,16 @@ export function ExecutionView({
         <div className="mb-5 flex gap-3">
           <StatChip
             label="Target Load"
-            value={displayWeight(currentExercise.planned.loadKg, units)}
+            value={displayWeight(currentExercise.prescription.loadKg, units)}
             unit={units}
           />
           <StatChip
             label="Target Reps"
-            value={currentExercise.planned.repRange}
+            value={currentExercise.prescription.repRange}
           />
           <StatChip
             label="Target RIR"
-            value={currentExercise.planned.rirTarget}
+            value={currentExercise.prescription.rirTarget}
           />
         </div>
 
@@ -139,7 +140,10 @@ export function ExecutionView({
           </div>
           <div className="border-border divide-border divide-y rounded-2xl border">
             {upcomingExercises.map((exercise, index) => (
-              <div key={exercise.planned.id} className="px-4">
+              <div
+                key={prescriptionId(exercise.prescription.ref)}
+                className="px-4"
+              >
                 <ExerciseRow
                   sessionExercise={exercise}
                   status="upcoming"

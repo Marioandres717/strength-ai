@@ -11,7 +11,7 @@ export function ExerciseRow({
   status,
   index,
 }: ExerciseRowProps) {
-  const { exercise, planned } = sessionExercise
+  const { exercise, prescription: planned } = sessionExercise
   const isCompleted = status === "completed"
 
   return (

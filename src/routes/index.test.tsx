@@ -77,6 +77,8 @@ function makeCompletedLog(templateId: string): SelectWorkoutLog {
     startedAt: new Date("2024-01-08T09:00:00Z"),
     completedAt: new Date("2024-01-08T10:00:00Z"),
     fatigueRating: null,
+    onDemandWorkoutRevisionId: null,
+    runSnapshot: null,
     notes: null,
     userId: null,
     createdAt: new Date("2024-01-08T09:00:00Z"),

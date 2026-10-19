@@ -10,3 +10,5 @@ backups
 strength.db
 strength.db-shm
 strength.db-wal
+
+on-demand-workout-recovery

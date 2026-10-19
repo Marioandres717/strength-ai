@@ -24,6 +24,9 @@ vi.mock("../../functions/saveFeedback", () => ({
 function renderPage() {
   return render(
     <FeedbackPage
+      onSave={async (data) => {
+        await mockSaveFeedbackFn({ data })
+      }}
       workoutLogId="workout-1"
       sessionName="Lower A"
       progressionChanges={[

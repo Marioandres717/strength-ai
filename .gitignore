@@ -22,3 +22,6 @@ strength.db-wal
 runtime-data/
 backups/
 .aider*
+
+# Paid-output recovery receipts (may contain private training context)
+on-demand-workout-recovery/

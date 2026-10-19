@@ -1,14 +1,20 @@
+import { validateWorkoutTimestamp } from "../../lib/workoutValidation"
 import { and, asc, desc, eq, gt } from "drizzle-orm"
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
 import {
   exercise,
+  onDemandWorkoutExercise,
   plannedExercise,
   sessionTemplate,
   setLog,
   workoutLog,
 } from "../../lib/schema"
 import type * as workoutSchema from "../../lib/schema"
-import { computeProgression, type SetRecord } from "../../lib/rules"
+import {
+  canApplyProgramRules,
+  computeProgression,
+  type SetRecord,
+} from "../../lib/rules"
 
 type WorkoutDatabase = BetterSQLite3Database<typeof workoutSchema>
 
@@ -22,7 +28,8 @@ export interface ProgressionChange {
 
 export interface CompleteSessionInput {
   workoutLogId: string
-  sessionTemplateId: string
+  sessionTemplateId?: string
+  completedAt?: Date
 }
 
 export interface CompleteSessionResult {
@@ -47,7 +54,10 @@ export function completeSessionOperation(
       throw new Error(`Workout log ${input.workoutLogId} not found.`)
     }
 
-    if (workout.sessionTemplateId !== input.sessionTemplateId) {
+    if (
+      input.sessionTemplateId !== undefined &&
+      workout.sessionTemplateId !== input.sessionTemplateId
+    ) {
       throw new Error(
         `Workout log ${input.workoutLogId} does not belong to session template ${input.sessionTemplateId}.`
       )
@@ -61,10 +71,58 @@ export function completeSessionOperation(
       }
     }
 
+    const completedAt = input.completedAt ?? new Date()
+    validateWorkoutTimestamp(completedAt, workout.startedAt)
+    if (
+      !canApplyProgramRules(
+        workout.sessionTemplateId ? "planned" : "on_demand_workout"
+      )
+    ) {
+      if (!workout.onDemandWorkoutRevisionId)
+        throw new Error("Invalid workout source.")
+      const prescriptions = tx
+        .select()
+        .from(onDemandWorkoutExercise)
+        .where(
+          eq(
+            onDemandWorkoutExercise.onDemandWorkoutRevisionId,
+            workout.onDemandWorkoutRevisionId
+          )
+        )
+        .all()
+      const sets = tx
+        .select()
+        .from(setLog)
+        .where(eq(setLog.workoutLogId, workout.id))
+        .all()
+      if (!prescriptions.length) throw new Error("Workout has no exercises.")
+      for (const prescription of prescriptions)
+        for (let n = 1; n <= prescription.sets; n++) {
+          if (
+            !sets.some(
+              (s) =>
+                s.onDemandWorkoutExerciseId === prescription.id &&
+                s.setNumber === n
+            )
+          )
+            throw new Error("Workout is incomplete: missing required set.")
+        }
+      tx.update(workoutLog)
+        .set({ completedAt })
+        .where(eq(workoutLog.id, workout.id))
+        .run()
+      return {
+        workoutLogId: workout.id,
+        alreadyCompleted: false,
+        progressionChanges: [],
+      }
+    }
+    if (!workout.sessionTemplateId)
+      throw new Error("Invalid planned workout source.")
     const template = tx
       .select()
       .from(sessionTemplate)
-      .where(eq(sessionTemplate.id, input.sessionTemplateId))
+      .where(eq(sessionTemplate.id, workout.sessionTemplateId))
       .limit(1)
       .all()[0]
 
@@ -76,7 +134,7 @@ export function completeSessionOperation(
       .select({ planned: plannedExercise, exerciseName: exercise.name })
       .from(plannedExercise)
       .innerJoin(exercise, eq(plannedExercise.exerciseId, exercise.id))
-      .where(eq(plannedExercise.sessionTemplateId, input.sessionTemplateId))
+      .where(eq(plannedExercise.sessionTemplateId, workout.sessionTemplateId))
       .orderBy(asc(plannedExercise.orderIndex))
       .all()
 
@@ -125,7 +183,7 @@ export function completeSessionOperation(
     }
 
     tx.update(workoutLog)
-      .set({ completedAt: new Date() })
+      .set({ completedAt })
       .where(eq(workoutLog.id, input.workoutLogId))
       .run()
 

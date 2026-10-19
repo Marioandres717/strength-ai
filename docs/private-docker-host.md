@@ -62,10 +62,14 @@ computer:
 1. Stop the source: `docker compose stop strength-ai`.
 2. Create and verify a final backup: `docker compose start strength-ai`, run
    the backup command above, then stop it again.
-3. Copy only the resulting `.db` and its `.sha256` file to the other computer.
+3. Copy the resulting `.db`, its `.sha256` file, and its `.db.recovery/`
+   directory (when present) to the other computer. Recovery receipts can contain
+   paid workout output that has not yet reached SQLite. Sync all phone/browser
+   outboxes before the final backup; browser storage does not move between host URLs.
 4. With the destination container stopped, verify the manifest (`sha256sum -c
 strength-....db.sha256` on macOS; `Get-FileHash` on Windows) and copy the
    backup to `runtime-data/strength.db`.
+   Restore the receipt directory as `runtime-data/on-demand-workout-recovery/`.
 5. Never copy `strength.db-wal` or `strength.db-shm`. Delete any stale files
    with those names in the destination `runtime-data/` directory.
 6. Start the destination with `docker compose up -d`, verify `/healthz`, then

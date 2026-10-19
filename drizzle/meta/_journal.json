@@ -15,6 +15,13 @@
       "when": 1789560000000,
       "tag": "0001_session_order",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792433896281,
+      "tag": "0002_on_demand_workouts",
+      "breakpoints": true
     }
   ]
 }

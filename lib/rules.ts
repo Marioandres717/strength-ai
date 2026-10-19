@@ -98,3 +98,6 @@ export function computeProgression(
     reason: `All ${sets.length} sets hit ${upperBound}+ reps with RIR ≥ ${prescription.rirTarget}. Load increased from ${prescription.loadKg} kg to ${newLoad} kg.`,
   }
 }
+export function canApplyProgramRules(sourceKind: string): boolean {
+  return sourceKind === "planned"
+}

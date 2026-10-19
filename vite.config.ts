@@ -13,6 +13,7 @@ const config = defineConfig({
     tsconfigPaths({ projects: ["./tsconfig.json"] }),
     tailwindcss(),
     tanstackStart({
+      spa: { enabled: true },
       router: {
         routeFileIgnorePattern: "\\.test\\.",
       },

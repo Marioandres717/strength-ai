@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
 import { TriangleAlertIcon } from "lucide-react"
 import type { ProgressionChange } from "../../functions/completeSession"
-import { saveFeedbackFn } from "../../functions/saveFeedback"
+import { saveWorkoutFeedback } from "../../lib/workoutPersistence"
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert"
 import { Button } from "../ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "../ui/field"
@@ -12,6 +12,9 @@ import { formatWeight } from "../../lib/weightUnits"
 import type { WeightUnit } from "../../lib/weightUnits"
 
 interface FeedbackPageProps {
+  returnTo?: "/" | "/on-demand-workouts"
+  pendingSync?: boolean
+  onSave?: typeof saveWorkoutFeedback
   workoutLogId: string
   sessionName: string
   progressionChanges: ProgressionChange[]
@@ -20,6 +23,9 @@ interface FeedbackPageProps {
 
 export function FeedbackPage({
   workoutLogId,
+  returnTo = "/",
+  pendingSync = false,
+  onSave = saveWorkoutFeedback,
   sessionName,
   progressionChanges,
   units = "kg",
@@ -37,14 +43,12 @@ export function FeedbackPage({
     setSaveError(null)
 
     try {
-      await saveFeedbackFn({
-        data: {
-          workoutLogId,
-          fatigueRating: fatigue,
-          notes,
-        },
+      await onSave({
+        workoutLogId,
+        fatigueRating: fatigue,
+        notes,
       })
-      void navigate({ to: "/" })
+      void navigate({ to: returnTo })
     } catch (error) {
       console.error("Failed to save feedback:", error)
       setSaveError("Failed to save feedback. Retry to finish the workout.")
@@ -57,7 +61,7 @@ export function FeedbackPage({
       <div className="pt-safe-top flex items-center gap-3 px-4 py-4">
         <button
           type="button"
-          onClick={() => void navigate({ to: "/" })}
+          onClick={() => void navigate({ to: returnTo })}
           aria-label="Close"
           className="border-border bg-surface flex size-9 items-center justify-center rounded-full border text-white"
         >
@@ -88,6 +92,12 @@ export function FeedbackPage({
           </p>
         </div>
 
+        {pendingSync && (
+          <p role="status" className="text-muted mb-4 text-sm">
+            Saved on this device; sync pending. Program results will be
+            available after sync.
+          </p>
+        )}
         {progressionChanges.length > 0 && (
           <div className="mb-6">
             <p className="text-muted mb-3 text-xs font-semibold tracking-widest uppercase">

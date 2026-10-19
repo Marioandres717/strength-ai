@@ -1,49 +1,27 @@
 import { create } from "zustand"
-import type { SelectExercise, SelectPlannedExercise } from "../../lib/schema"
-import type { PriorPerformance } from "../functions/getSessionData"
+import type {
+  SessionExercise,
+  SessionRun,
+  PrescriptionRef,
+  PersistedSet,
+} from "../types/session"
+import { prescriptionId } from "../types/session"
 import { parseRepRangeLower } from "../../lib/rules"
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
+export type { SessionExercise } from "../types/session"
 export type SessionPhase = "active_set" | "resting" | "session_complete"
 export type LoggedSetSyncStatus = "pending" | "saved" | "failed"
-
-export interface SessionExercise {
-  planned: SelectPlannedExercise
-  exercise: SelectExercise
-  priorPerformance: PriorPerformance | null
-}
-
 export interface LoggedSet {
-  plannedExerciseId: string
-  setNumber: number
-  weightKg: number
-  reps: number
-  rirActual: number
-  serverSetLogId: string | null
-  syncStatus: LoggedSetSyncStatus
-}
-
-export interface PersistedLoggedSet {
-  setLogId: string
-  plannedExerciseId: string
+  prescriptionRef: PrescriptionRef
   setNumber: number
   weightKg: number
   reps: number
   rirActual: number
   loggedAt: Date
+  serverSetLogId: string | null
+  syncStatus: LoggedSetSyncStatus
 }
-
-export interface SessionInitPayload {
-  workoutLogId: string
-  sessionTemplateId: string
-  programName: string
-  exercises: SessionExercise[]
-  startedAt: Date
-  persistedSets: PersistedLoggedSet[]
-}
+export type PersistedLoggedSet = PersistedSet
+export type SessionInitPayload = SessionRun
 
 // ---------------------------------------------------------------------------
 // Store interface
@@ -52,8 +30,9 @@ export interface SessionInitPayload {
 interface SessionState {
   // Identity
   workoutLogId: string
-  sessionTemplateId: string
-  programName: string
+  source: SessionRun["source"]
+  title: string
+  programName: string | null
 
   // Exercise list (static after init)
   exercises: SessionExercise[]
@@ -69,6 +48,7 @@ interface SessionState {
 
   // Phase / timer
   phase: SessionPhase
+  restDeadline: number | null
   restSecondsRemaining: number
   restSecondsTotal: number
   restIntervalId: ReturnType<typeof setInterval> | null
@@ -119,29 +99,30 @@ interface SessionState {
 function seedInputs(exercise: SessionExercise) {
   const lowerReps = (() => {
     try {
-      return parseRepRangeLower(exercise.planned.repRange)
+      return parseRepRangeLower(exercise.prescription.repRange)
     } catch {
       return 8
     }
   })()
   return {
-    inputWeight: exercise.planned.loadKg,
+    inputWeight: exercise.prescription.loadKg,
     inputReps: lowerReps,
-    inputRir: exercise.planned.rirTarget,
+    inputRir: exercise.prescription.rirTarget,
   }
 }
 
-function toSetKey(plannedExerciseId: string, setNumber: number) {
-  return `${plannedExerciseId}:${setNumber}`
+function toSetKey(prescriptionRef: PrescriptionRef, setNumber: number) {
+  return `${prescriptionRef.kind}:${prescriptionId(prescriptionRef)}:${setNumber}`
 }
 
 function updateLoggedSet(
   loggedSets: LoggedSet[],
-  target: Pick<LoggedSet, "plannedExerciseId" | "setNumber">,
+  target: Pick<LoggedSet, "prescriptionRef" | "setNumber">,
   updater: (entry: LoggedSet) => LoggedSet
 ) {
   return loggedSets.map((entry) =>
-    entry.plannedExerciseId === target.plannedExerciseId &&
+    toSetKey(entry.prescriptionRef, entry.setNumber) ===
+      toSetKey(target.prescriptionRef, target.setNumber) &&
     entry.setNumber === target.setNumber
       ? updater(entry)
       : entry
@@ -151,7 +132,8 @@ function updateLoggedSet(
 function upsertLoggedSet(loggedSets: LoggedSet[], nextEntry: LoggedSet) {
   const existingIndex = loggedSets.findIndex(
     (entry) =>
-      entry.plannedExerciseId === nextEntry.plannedExerciseId &&
+      toSetKey(entry.prescriptionRef, entry.setNumber) ===
+        toSetKey(nextEntry.prescriptionRef, nextEntry.setNumber) &&
       entry.setNumber === nextEntry.setNumber
   )
 
@@ -168,7 +150,7 @@ function dedupePersistedSets(persistedSets: PersistedLoggedSet[]) {
   const deduped = new Map<string, PersistedLoggedSet>()
 
   for (const entry of persistedSets) {
-    const key = toSetKey(entry.plannedExerciseId, entry.setNumber)
+    const key = toSetKey(entry.prescriptionRef, entry.setNumber)
     const existing = deduped.get(key)
     if (!existing || entry.loggedAt.getTime() >= existing.loggedAt.getTime()) {
       deduped.set(key, entry)
@@ -185,16 +167,16 @@ function findNextUnloggedSet(
   const savedKeys = new Set(
     loggedSets
       .filter((entry) => entry.syncStatus === "saved")
-      .map((entry) => toSetKey(entry.plannedExerciseId, entry.setNumber))
+      .map((entry) => toSetKey(entry.prescriptionRef, entry.setNumber))
   )
 
   for (const [exerciseIndex, exercise] of exercises.entries()) {
     for (
       let setNumber = 1;
-      setNumber <= exercise.planned.sets;
+      setNumber <= exercise.prescription.sets;
       setNumber += 1
     ) {
-      if (!savedKeys.has(toSetKey(exercise.planned.id, setNumber))) {
+      if (!savedKeys.has(toSetKey(exercise.prescription.ref, setNumber))) {
         return { exerciseIndex, setNumber }
       }
     }
@@ -207,7 +189,7 @@ function findNextUnloggedSet(
 function advanceAfterRest(state: SessionState): Partial<SessionState> {
   const currentExercise = state.exercises[state.currentExerciseIndex]
   const isLastSetOfExercise =
-    state.currentSetNumber >= currentExercise.planned.sets
+    state.currentSetNumber >= currentExercise.prescription.sets
   const isLastExercise =
     state.currentExerciseIndex >= state.exercises.length - 1
 
@@ -238,7 +220,12 @@ function advanceAfterRest(state: SessionState): Partial<SessionState> {
 
 const EMPTY_STATE = {
   workoutLogId: "",
-  sessionTemplateId: "",
+  source: {
+    kind: "planned",
+    sessionTemplateId: "",
+    programId: "",
+  } as SessionRun["source"],
+  title: "",
   programName: "",
   exercises: [] as SessionExercise[],
   currentExerciseIndex: 0,
@@ -247,6 +234,7 @@ const EMPTY_STATE = {
   inputReps: 8,
   inputRir: 2,
   phase: "active_set" as SessionPhase,
+  restDeadline: null as number | null,
   restSecondsRemaining: 0,
   restSecondsTotal: 0,
   restIntervalId: null as ReturnType<typeof setInterval> | null,
@@ -267,11 +255,12 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     const firstExercise = payload.exercises[0]
     const loggedSets = dedupePersistedSets(payload.persistedSets).map(
       (entry) => ({
-        plannedExerciseId: entry.plannedExerciseId,
+        prescriptionRef: entry.prescriptionRef,
         setNumber: entry.setNumber,
         weightKg: entry.weightKg,
         reps: entry.reps,
         rirActual: entry.rirActual,
+        loggedAt: entry.loggedAt,
         serverSetLogId: entry.setLogId,
         syncStatus: "saved" as const,
       })
@@ -282,17 +271,55 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
         ? payload.exercises[nextUnloggedSet.exerciseIndex]
         : firstExercise
 
+    const rest =
+      payload.restDeadline &&
+      payload.restDeadline > Date.now() &&
+      nextUnloggedSet
+        ? payload.restDeadline
+        : null
+    const previousIndex = nextUnloggedSet
+      ? nextUnloggedSet.exerciseIndex -
+        (nextUnloggedSet.setNumber === 1 ? 1 : 0)
+      : -1
+    const previousExercise = payload.exercises[previousIndex]
+    const previousSet = previousExercise
+      ? payload.persistedSets.find(
+          (entry) =>
+            prescriptionId(entry.prescriptionRef) ===
+              prescriptionId(previousExercise.prescription.ref) &&
+            entry.setNumber ===
+              (nextUnloggedSet && nextUnloggedSet.setNumber > 1
+                ? nextUnloggedSet.setNumber - 1
+                : previousExercise.prescription.sets)
+        )
+      : undefined
     set({
       ...EMPTY_STATE,
       workoutLogId: payload.workoutLogId,
-      sessionTemplateId: payload.sessionTemplateId,
+      source: payload.source,
+      title: payload.title,
       programName: payload.programName,
       exercises: payload.exercises,
       startedAt: payload.startedAt,
       loggedSets,
-      phase: nextUnloggedSet == null ? "session_complete" : "active_set",
-      currentExerciseIndex: nextUnloggedSet?.exerciseIndex ?? 0,
-      currentSetNumber: nextUnloggedSet?.setNumber ?? 1,
+      phase:
+        rest && previousIndex >= 0
+          ? "resting"
+          : nextUnloggedSet == null
+            ? "session_complete"
+            : "active_set",
+      restDeadline: rest,
+      restSecondsTotal: payload.restSeconds ?? 0,
+      restSecondsRemaining: rest ? Math.ceil((rest - Date.now()) / 1000) : 0,
+      restIntervalId: rest ? setInterval(() => get().tickTimer(), 1000) : null,
+      currentExerciseIndex:
+        rest && previousIndex >= 0
+          ? previousIndex
+          : (nextUnloggedSet?.exerciseIndex ?? 0),
+      currentSetNumber:
+        rest && previousSet
+          ? previousSet.setNumber
+          : (nextUnloggedSet?.setNumber ?? 1),
       ...(activeExercise ? seedInputs(activeExercise) : {}),
     })
   },
@@ -303,13 +330,19 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
 
     const currentExercise = state.exercises[state.currentExerciseIndex]
     const isLastSetOfExercise =
-      state.currentSetNumber >= currentExercise.planned.sets
+      state.currentSetNumber >= currentExercise.prescription.sets
     const isLastExercise =
       state.currentExerciseIndex >= state.exercises.length - 1
     const isSessionComplete = isLastSetOfExercise && isLastExercise
 
     const newEntry: LoggedSet = {
-      plannedExerciseId: currentExercise.planned.id,
+      prescriptionRef: currentExercise.prescription.ref,
+      loggedAt:
+        state.loggedSets.find(
+          (entry) =>
+            toSetKey(entry.prescriptionRef, entry.setNumber) ===
+            toSetKey(currentExercise.prescription.ref, state.currentSetNumber)
+        )?.loggedAt ?? new Date(),
       setNumber: state.currentSetNumber,
       weightKg,
       reps,
@@ -319,45 +352,29 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     }
     const existingEntry = state.loggedSets.find(
       (entry) =>
-        entry.plannedExerciseId === newEntry.plannedExerciseId &&
+        toSetKey(entry.prescriptionRef, entry.setNumber) ===
+          toSetKey(newEntry.prescriptionRef, newEntry.setNumber) &&
         entry.setNumber === newEntry.setNumber
     )
 
     if (existingEntry?.syncStatus === "saved") return
 
-    const nextLoggedSets = upsertLoggedSet(state.loggedSets, newEntry)
-
-    if (isSessionComplete) {
-      set({
-        isSubmitting: true,
-        loggedSets: nextLoggedSets,
-        setSyncError: null,
-      })
-    } else {
-      const restSeconds = currentExercise.planned.restSeconds
-      const intervalId = setInterval(() => {
-        get().tickTimer()
-      }, 1000)
-
-      set({
-        phase: "resting",
-        restSecondsRemaining: restSeconds,
-        restSecondsTotal: restSeconds,
-        restIntervalId: intervalId,
-        isSubmitting: false,
-        loggedSets: nextLoggedSets,
-        setSyncError: null,
-      })
-    }
+    set({
+      isSubmitting: true,
+      loggedSets: upsertLoggedSet(state.loggedSets, newEntry),
+      setSyncError: null,
+    })
 
     try {
       const setLogId = await onPersist({
-        plannedExerciseId: newEntry.plannedExerciseId,
+        prescriptionRef: newEntry.prescriptionRef,
         setNumber: newEntry.setNumber,
         weightKg: newEntry.weightKg,
         reps: newEntry.reps,
         rirActual: newEntry.rirActual,
+        loggedAt: newEntry.loggedAt,
       })
+      if (get().workoutLogId !== state.workoutLogId) return
 
       // Fill in the server-assigned ID
       set((s) => {
@@ -369,12 +386,21 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
 
         return {
           loggedSets,
-          phase: isSessionComplete ? "session_complete" : s.phase,
+          phase: isSessionComplete ? "session_complete" : "resting",
+          restDeadline: isSessionComplete
+            ? null
+            : Date.now() + currentExercise.prescription.restSeconds * 1000,
+          restSecondsRemaining: currentExercise.prescription.restSeconds,
+          restSecondsTotal: currentExercise.prescription.restSeconds,
+          restIntervalId: isSessionComplete
+            ? null
+            : setInterval(() => get().tickTimer(), 1000),
           isSubmitting: false,
           setSyncError: null,
         }
       })
     } catch {
+      if (get().workoutLogId !== state.workoutLogId) return
       set((s) => ({
         loggedSets: updateLoggedSet(s.loggedSets, newEntry, (entry) => ({
           ...entry,
@@ -383,7 +409,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
         isSubmitting: false,
         setSyncError: isSessionComplete
           ? "Failed to save your final set. Retry to finish the workout."
-          : s.setSyncError,
+          : "Failed to save set on this device. Retry before continuing.",
       }))
     }
   },
@@ -418,11 +444,12 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
 
       try {
         const setLogId = await onPersist({
-          plannedExerciseId: entry.plannedExerciseId,
+          prescriptionRef: entry.prescriptionRef,
           setNumber: entry.setNumber,
           weightKg: entry.weightKg,
           reps: entry.reps,
           rirActual: entry.rirActual,
+          loggedAt: entry.loggedAt,
         })
 
         set((currentState) => ({
@@ -460,7 +487,9 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     const state = get()
     if (state.phase !== "resting") return
 
-    const next = state.restSecondsRemaining - 1
+    const next = Math.ceil(
+      ((state.restDeadline ?? Date.now()) - Date.now()) / 1000
+    )
     if (next <= 0) {
       if (state.restIntervalId !== null) {
         clearInterval(state.restIntervalId)
@@ -479,6 +508,9 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     const state = get()
     const next = state.restSecondsRemaining + deltaSeconds
     set({
+      restDeadline:
+        Date.now() +
+        Math.max(0, Math.min(next, state.restSecondsTotal + 120)) * 1000,
       restSecondsRemaining: Math.max(
         0,
         Math.min(next, state.restSecondsTotal + 120)
@@ -493,6 +525,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       clearInterval(state.restIntervalId)
     }
     set({
+      restDeadline: null,
       restSecondsRemaining: 0,
       restIntervalId: null,
       ...advanceAfterRest(state),

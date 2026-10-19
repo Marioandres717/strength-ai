@@ -1,3 +1,12 @@
+import type {
+  GenerateOnDemandWorkoutInput,
+  OnDemandWorkoutGenerationContext,
+} from "../src/types/on-demand-workout"
+import { constraintsSchema } from "../src/types/on-demand-workout"
+import {
+  ON_DEMAND_WORKOUT_GENERATION_PROMPT,
+  buildOnDemandWorkoutUserMessage,
+} from "./prompts"
 import Anthropic, {
   APIError as AnthropicAPIError,
   AuthenticationError as AnthropicAuthenticationError,
@@ -208,6 +217,9 @@ interface StructuredGenerationRequest<T> {
   schemaName: string
   schema: z.ZodType<T>
   maxOutputTokens: number
+  model?: string
+  maxRetries?: number
+  timeout?: number
 }
 
 interface AIProvider {
@@ -244,14 +256,17 @@ class AnthropicProvider implements AIProvider {
   }
 
   async generateObject<T>(request: StructuredGenerationRequest<T>): Promise<T> {
-    const response = await this.getClient().messages.parse({
-      model: process.env.ANTHROPIC_MODEL ?? ANTHROPIC_MODEL,
-      max_tokens: request.maxOutputTokens,
-      temperature: 0,
-      system: request.systemPrompt,
-      messages: [{ role: "user", content: request.userPrompt }],
-      output_config: { format: zodOutputFormat(request.schema) },
-    })
+    const response = await this.getClient().messages.parse(
+      {
+        model: request.model ?? process.env.ANTHROPIC_MODEL ?? ANTHROPIC_MODEL,
+        max_tokens: request.maxOutputTokens,
+        temperature: 0,
+        system: request.systemPrompt,
+        messages: [{ role: "user", content: request.userPrompt }],
+        output_config: { format: zodOutputFormat(request.schema) },
+      },
+      { maxRetries: request.maxRetries, timeout: request.timeout }
+    )
 
     if (!response.parsed_output) {
       throw new AICallError(
@@ -587,5 +602,59 @@ export async function swapExercise(input: SwapInput): Promise<SwapOutput> {
     const wrapped = wrapProviderError(err, "swapExercise")
     logFailure("swapExercise", Date.now() - start, wrapped.message)
     throw wrapped
+  }
+}
+
+export const OnDemandWorkoutOutputSchema = z.object({
+  result: z.discriminatedUnion("status", [
+    z.object({
+      status: z.literal("workout"),
+      title: z.string().min(1).max(100),
+      focus: FocusSchema,
+      reasoning: z.string().min(1).max(1000),
+      resolvedConstraints: constraintsSchema,
+      estimatedDurationSeconds: z.number().int().min(1).max(7200),
+      exercises: z
+        .array(
+          z.object({
+            exerciseId: z.string().min(1),
+            sets: z.number().int().min(1).max(10),
+            repRange: z.string().regex(/^([1-9][0-9]?|100)-([1-9][0-9]?|100)$/),
+            loadKg: z.number().min(0).max(500),
+            rirTarget: z.number().int().min(0).max(5),
+            restSeconds: z.number().int().min(30).max(600),
+            coachNote: z.string().min(1).max(400),
+          })
+        )
+        .min(1)
+        .max(12),
+    }),
+    z.object({
+      status: z.literal("infeasible"),
+      reasoning: z.string().min(1).max(1000),
+    }),
+  ]),
+})
+export type OnDemandWorkoutOutput = z.infer<
+  typeof OnDemandWorkoutOutputSchema
+>["result"]
+export async function generateOnDemandWorkout(
+  input: GenerateOnDemandWorkoutInput,
+  context: OnDemandWorkoutGenerationContext
+): Promise<OnDemandWorkoutOutput> {
+  try {
+    const output = await new AnthropicProvider().generateObject({
+      systemPrompt: ON_DEMAND_WORKOUT_GENERATION_PROMPT,
+      userPrompt: buildOnDemandWorkoutUserMessage(input, context),
+      schemaName: "on_demand_workout",
+      schema: OnDemandWorkoutOutputSchema,
+      maxOutputTokens: 4096,
+      model: "claude-sonnet-4-6",
+      maxRetries: 0,
+      timeout: 90000,
+    })
+    return output.result
+  } catch (error) {
+    throw wrapProviderError(error, "generateOnDemandWorkout")
   }
 }

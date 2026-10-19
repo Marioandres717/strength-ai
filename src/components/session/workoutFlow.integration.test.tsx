@@ -8,7 +8,7 @@ import {
   type CompleteSessionInput,
   type CompleteSessionResult,
 } from "../../functions/completeSession.server"
-import { getSessionDataOperation } from "../../functions/getSessionData"
+import { getSessionDataOperation } from "../../functions/getSessionData.server"
 import {
   logSetOperation,
   type LogSetInput,
@@ -21,8 +21,47 @@ import {
 } from "../../functions/saveFeedback"
 import { fireEvent, render, screen, waitFor } from "../../test/utils"
 import { createWorkoutTestDb } from "../../test/workoutDb"
-import { FeedbackPage } from "../feedback/FeedbackPage"
-import { SessionPage } from "./SessionPage"
+import { FeedbackPage as FeedbackPageComponent } from "../feedback/FeedbackPage"
+function FeedbackPage(
+  props: React.ComponentProps<typeof FeedbackPageComponent>
+) {
+  return (
+    <FeedbackPageComponent
+      {...props}
+      onSave={async (data) => {
+        await mockSaveFeedbackFn({ data })
+      }}
+    />
+  )
+}
+import { SessionPage as SessionPageComponent } from "./SessionPage"
+import type { SessionPersistence } from "./SessionPage"
+import type { GetSessionDataResult } from "../../functions/getSessionData"
+const onlinePersistence: SessionPersistence = {
+  prepare: (run) => Promise.resolve(run),
+  commit: async (id, entry) =>
+    (
+      (await mockLogSetFn({
+        data: {
+          ...entry,
+          workoutLogId: id,
+          loggedAt: entry.loggedAt.toISOString(),
+        },
+      })) as LogSetResult
+    ).setLogId,
+  complete: async (id) =>
+    mockCompleteSessionFn({
+      data: { workoutLogId: id },
+    }) as Promise<CompleteSessionResult>,
+}
+function SessionPage({ loaderData }: { loaderData: GetSessionDataResult }) {
+  return (
+    <SessionPageComponent
+      loaderData={loaderData}
+      persistence={onlinePersistence}
+    />
+  )
+}
 
 const {
   mockNavigate,
@@ -162,7 +201,7 @@ function renderFeedback(workoutLogId: string, sessionName: string) {
 }
 
 function assertUniqueCompositeSetRows(
-  rows: { plannedExerciseId: string; setNumber: number }[]
+  rows: { plannedExerciseId: string | null; setNumber: number }[]
 ) {
   const compositeKeys = new Set(
     rows.map((row) => `${row.plannedExerciseId}:${row.setNumber}`)
@@ -212,7 +251,9 @@ describe("workout flow integration", () => {
     const flow = seedWorkoutFlow(context)
     let view = await renderSession(flow.currentSession.id)
 
-    fireEvent.click(screen.getByRole("button", { name: "Complete Set & Rest" }))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Complete Set & Rest" })
+    )
     await waitFor(() => expect(mockLogSetFn).toHaveBeenCalledTimes(1))
 
     view.unmount()
@@ -231,7 +272,7 @@ describe("workout flow integration", () => {
 
     view = await renderSession(flow.currentSession.id)
     expect(
-      screen.getByRole("button", { name: "Complete Workout" })
+      await screen.findByRole("button", { name: "Complete Workout" })
     ).toBeVisible()
 
     fireEvent.click(screen.getByRole("button", { name: "Complete Workout" }))
@@ -323,16 +364,18 @@ describe("workout flow integration", () => {
 
     await renderSession(flow.currentSession.id)
 
-    fireEvent.click(screen.getByRole("button", { name: "Complete Set & Rest" }))
-    fireEvent.click(screen.getByRole("button", { name: "Skip" }))
-    fireEvent.click(screen.getByRole("button", { name: "Complete Workout" }))
-
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Complete Set & Rest" })
+    )
+    await screen.findByText(/Failed to save/)
     expect(mockCompleteSessionFn).not.toHaveBeenCalled()
-    expect(
-      await screen.findByRole("button", { name: "Retry set sync" })
-    ).toBeVisible()
-
-    fireEvent.click(screen.getByRole("button", { name: "Retry set sync" }))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Complete Set & Rest" })
+    )
+    fireEvent.click(await screen.findByRole("button", { name: "Skip" }))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Complete Workout" })
+    )
     await waitFor(() => expect(mockCompleteSessionFn).toHaveBeenCalledTimes(1))
 
     const setRows = context.db.select().from(setLog).all()
@@ -360,8 +403,10 @@ describe("workout flow integration", () => {
 
     await renderSession(flow.currentSession.id)
 
-    fireEvent.click(screen.getByRole("button", { name: "Complete Set & Rest" }))
-    fireEvent.click(screen.getByRole("button", { name: "Skip" }))
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Complete Set & Rest" })
+    )
+    fireEvent.click(await screen.findByRole("button", { name: "Skip" }))
     fireEvent.click(screen.getByRole("button", { name: "Complete Workout" }))
 
     expect(

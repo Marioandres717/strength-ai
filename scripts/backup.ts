@@ -1,3 +1,5 @@
+import { cpSync } from "node:fs"
+import { recoveryDirectory } from "../lib/onDemandWorkoutRecovery.server"
 import { createHash } from "node:crypto"
 import {
   existsSync,
@@ -51,6 +53,9 @@ try {
 for (const sidecar of [`${backupPath}-wal`, `${backupPath}-shm`]) {
   if (existsSync(sidecar)) rmSync(sidecar)
 }
+
+if (existsSync(recoveryDirectory()))
+  cpSync(recoveryDirectory(), `${backupPath}.recovery`, { recursive: true })
 
 const checksum = createHash("sha256")
   .update(readFileSync(backupPath))

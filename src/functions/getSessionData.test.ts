@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { getSessionDataOperation } from "./getSessionData"
+import { getSessionDataOperation } from "./getSessionData.server"
 import { createWorkoutTestDb } from "../test/workoutDb"
 
 const contexts: ReturnType<typeof createWorkoutTestDb>[] = []

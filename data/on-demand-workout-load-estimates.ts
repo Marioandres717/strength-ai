@@ -1,0 +1,37 @@
+/** External load in kg; dumbbell prescriptions use the weight of ONE dumbbell.
+ * Bodyweight movements use zero additional load. These are starting suggestions.
+ * Only reviewed, rep-based exercises are eligible; unknown catalog additions fail closed.
+ */
+export const onDemandWorkoutLoadEstimates: Record<string, number> = {
+  "Back Squat": 20,
+  "Front Squat": 20,
+  "Goblet Squat": 5,
+  "Leg Press": 20,
+  "Bulgarian Split Squat": 0,
+  Deadlift: 20,
+  "Romanian Deadlift": 20,
+  "Hip Thrust": 20,
+  "Good Morning": 20,
+  "Leg Curl (Lying)": 5,
+  "Barbell Bench Press": 20,
+  "Incline Dumbbell Press": 5,
+  "Overhead Press (Barbell)": 20,
+  "Dumbbell Shoulder Press": 5,
+  Dips: 0,
+  "Push-Ups": 0,
+  "Pull-Ups": 0,
+  "Chin-Ups": 0,
+  "Barbell Row": 20,
+  "Seated Cable Row": 10,
+  "Lat Pulldown": 10,
+  "Face Pulls": 5,
+  "Bicep Curl": 5,
+  "Hammer Curl": 5,
+  "Tricep Pushdown": 5,
+  "Skull Crusher": 5,
+  "Lateral Raise": 2.5,
+  "Leg Extension": 5,
+  "Calf Raise (Standing)": 0,
+  "Cable Fly": 5,
+  "Reverse Fly": 2.5,
+}

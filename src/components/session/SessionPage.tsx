@@ -1,22 +1,52 @@
+import type { SessionRun } from "../../types/session"
+import { plannedSessionAdapter } from "../../lib/plannedSessionAdapter"
 import { useEffect, useRef, useState } from "react"
 import { useNavigate } from "@tanstack/react-router"
-import { completeSessionFn } from "../../functions/completeSession"
+import {
+  cacheRun,
+  commitWorkoutSet,
+  completeWorkoutLocally,
+  saveRestDeadline,
+  loadRun,
+} from "../../lib/workoutPersistence"
+import type { SetCommit } from "../../lib/workoutPersistence"
 import type { GetSessionDataResult } from "../../functions/getSessionData"
-import { logSetFn } from "../../functions/logSet"
+
 import { useSessionStore } from "../../stores/sessionStore"
 import { displayWeight, toKg } from "../../lib/weightUnits"
 import { ExecutionView } from "./ExecutionView"
 import { SessionHeader } from "./SessionHeader"
 import { SetDetailView } from "./SetDetailView"
 
-interface SessionPageProps {
-  loaderData: GetSessionDataResult
+export interface SessionPersistence {
+  updateRest?: typeof saveRestDeadline
+  prepare: (run: SessionRun) => Promise<SessionRun>
+  commit: (id: string, entry: SetCommit) => Promise<string>
+  complete: (id: string) => Promise<{ workoutLogId: string }>
+}
+const localPersistence: SessionPersistence = {
+  prepare: async (run) => {
+    await cacheRun(run)
+    return loadRun(run.workoutLogId)
+  },
+  commit: commitWorkoutSet,
+  complete: completeWorkoutLocally,
+  updateRest: saveRestDeadline,
 }
 
-export function SessionPage({ loaderData }: SessionPageProps) {
+interface SessionPageProps {
+  persistence?: SessionPersistence
+  loaderData: GetSessionDataResult | SessionRun
+}
+
+export function SessionPage({
+  loaderData,
+  persistence = localPersistence,
+}: SessionPageProps) {
   const navigate = useNavigate()
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [completionError, setCompletionError] = useState<string | null>(null)
+  const [timerError, setTimerError] = useState<string | null>(null)
   const isCompletingRef = useRef(false)
 
   const {
@@ -34,8 +64,8 @@ export function SessionPage({ loaderData }: SessionPageProps) {
     loggedSets,
     isSubmitting,
     workoutLogId,
-    sessionTemplateId,
     programName,
+    title,
     startedAt,
     setSyncError,
     commitSet,
@@ -59,43 +89,35 @@ export function SessionPage({ loaderData }: SessionPageProps) {
   const sessionCompleteStatusText =
     completionError ??
     (allSetsSaved
-      ? "Calculating your results..."
+      ? "Saving workout on this device..."
       : hasPendingSets
-        ? "Waiting for every set to sync before completion..."
-        : "Some sets failed to sync. Retry before completion.")
+        ? "Saving committed sets on this device..."
+        : "Some sets could not be saved. Retry before finishing.")
 
-  const persistSet = async (entry: {
-    plannedExerciseId: string
-    setNumber: number
-    weightKg: number
-    reps: number
-    rirActual: number
-  }) => {
-    const result = await logSetFn({
-      data: {
-        workoutLogId,
-        plannedExerciseId: entry.plannedExerciseId,
-        setNumber: entry.setNumber,
-        weightKg: entry.weightKg,
-        reps: entry.reps,
-        rirActual: entry.rirActual,
-        loggedAt: new Date().toISOString(),
-      },
-    })
-
-    return result.setLogId
-  }
+  const persistSet = (entry: SetCommit) =>
+    persistence.commit(workoutLogId, entry)
 
   useEffect(() => {
-    initSession({
-      workoutLogId: loaderData.workoutLogId,
-      sessionTemplateId: loaderData.sessionTemplate.id,
-      programName: loaderData.program.name,
-      exercises: loaderData.exercises,
-      startedAt: loaderData.startedAt,
-      persistedSets: loaderData.persistedSets,
-    })
-    return () => reset()
+    let active = true
+    const run =
+      "source" in loaderData ? loaderData : plannedSessionAdapter(loaderData)
+    void persistence
+      .prepare(run)
+      .then((prepared) => {
+        if (active) initSession(prepared)
+      })
+      .catch(() =>
+        setCompletionError(
+          "Device storage is unavailable. Reload to retry before logging sets."
+        )
+      )
+    const visibility = () => useSessionStore.getState().tickTimer()
+    document.addEventListener("visibilitychange", visibility)
+    return () => {
+      active = false
+      document.removeEventListener("visibilitychange", visibility)
+      reset()
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -118,9 +140,7 @@ export function SessionPage({ loaderData }: SessionPageProps) {
     setCompletionError(null)
 
     try {
-      const result = await completeSessionFn({
-        data: { workoutLogId, sessionTemplateId },
-      })
+      const result = await persistence.complete(workoutLogId)
 
       void navigate({
         to: "/feedback/$id",
@@ -139,9 +159,8 @@ export function SessionPage({ loaderData }: SessionPageProps) {
 
     isCompletingRef.current = true
 
-    void completeSessionFn({
-      data: { workoutLogId, sessionTemplateId },
-    })
+    void persistence
+      .complete(workoutLogId)
       .then((result) => {
         void navigate({
           to: "/feedback/$id",
@@ -158,7 +177,7 @@ export function SessionPage({ loaderData }: SessionPageProps) {
     completionError,
     navigate,
     phase,
-    sessionTemplateId,
+    persistence,
     workoutLogId,
   ])
 
@@ -182,7 +201,9 @@ export function SessionPage({ loaderData }: SessionPageProps) {
   if (exercises.length === 0) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center">
-        <p className="text-muted text-sm">Loading session...</p>
+        <p className="text-muted text-sm">
+          {completionError ?? "Loading session..."}
+        </p>
       </div>
     )
   }
@@ -238,7 +259,7 @@ export function SessionPage({ loaderData }: SessionPageProps) {
   return (
     <div className="bg-bg flex min-h-screen flex-col">
       <SessionHeader
-        programName={programName}
+        title={programName ?? title}
         currentExerciseIndex={currentExerciseIndex}
         totalExercises={exercises.length}
         elapsedSeconds={elapsedSeconds}
@@ -250,7 +271,7 @@ export function SessionPage({ loaderData }: SessionPageProps) {
         <SetDetailView
           exercise={currentExercise}
           setNumber={currentSetNumber}
-          totalSets={currentExercise.planned.sets}
+          totalSets={currentExercise.prescription.sets}
           exerciseIndex={currentExerciseIndex}
           totalExercises={exercises.length}
           inputWeight={displayWeight(inputWeight, units)}
@@ -258,9 +279,15 @@ export function SessionPage({ loaderData }: SessionPageProps) {
           inputReps={inputReps}
           inputRir={inputRir}
           isSubmitting={isSubmitting}
-          errorMessage={setSyncError}
+          errorMessage={setSyncError ?? timerError}
           onBack={() => {
-            void navigate({ to: "/" })
+            void navigate({
+              to:
+                "source" in loaderData &&
+                loaderData.source.kind === "on_demand_workout"
+                  ? "/on-demand-workouts"
+                  : "/",
+            })
           }}
           onWeightChange={(weight) => setInputWeight(toKg(weight, units))}
           onRepsChange={setInputReps}
@@ -276,9 +303,33 @@ export function SessionPage({ loaderData }: SessionPageProps) {
           restSecondsRemaining={restSecondsRemaining}
           restSecondsTotal={restSecondsTotal}
           loggedSets={loggedSets}
-          onLogSet={skipRest}
-          onAdjustTimer={adjustTimer}
-          onSkipRest={skipRest}
+          onLogSet={() => {
+            skipRest()
+            void persistence
+              .updateRest?.(workoutLogId, null, 0)
+              .catch(() => undefined)
+          }}
+          onAdjustTimer={(delta) => {
+            adjustTimer(delta)
+            const state = useSessionStore.getState()
+            void persistence
+              .updateRest?.(
+                workoutLogId,
+                state.restDeadline,
+                state.restSecondsTotal
+              )
+              .catch(() =>
+                setTimerError("Could not save the timer adjustment.")
+              )
+          }}
+          onSkipRest={() => {
+            skipRest()
+            void persistence
+              .updateRest?.(workoutLogId, null, 0)
+              .catch(() =>
+                setTimerError("Could not save the timer adjustment.")
+              )
+          }}
         />
       )}
     </div>

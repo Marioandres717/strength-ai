@@ -1,3 +1,4 @@
+import { prescriptionRefSchema } from "../types/on-demand-workout"
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { db } from "../../lib/db"
@@ -7,9 +8,10 @@ export type { LogSetResult } from "./logSet.server"
 
 const inputSchema = z.object({
   workoutLogId: z.string().min(1),
-  plannedExerciseId: z.string().min(1),
+  plannedExerciseId: z.string().min(1).optional(),
+  prescriptionRef: prescriptionRefSchema.optional(),
   setNumber: z.number().int().min(1),
-  weightKg: z.number().min(0),
+  weightKg: z.number().min(0).max(500),
   reps: z.number().int().min(1).max(100),
   rirActual: z.number().int().min(0).max(10),
   loggedAt: z.string().datetime({ offset: true }),

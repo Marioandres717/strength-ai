@@ -1,5 +1,5 @@
 interface SessionHeaderProps {
-  programName: string
+  title: string
   currentExerciseIndex: number
   totalExercises: number
   elapsedSeconds: number
@@ -14,7 +14,7 @@ function formatElapsed(seconds: number): string {
 }
 
 export function SessionHeader({
-  programName,
+  title,
   currentExerciseIndex,
   totalExercises,
   elapsedSeconds,
@@ -25,9 +25,7 @@ export function SessionHeader({
     <div className="border-border pt-safe-top border-b px-5 pb-4">
       {/* Top row: program name + menu */}
       <div className="mb-3 flex items-start justify-between gap-2">
-        <h1 className="text-lg leading-tight font-bold text-white">
-          {programName}
-        </h1>
+        <h1 className="text-lg leading-tight font-bold text-white">{title}</h1>
         {/* Button below has no purpose */}
         <button
           type="button"

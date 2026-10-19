@@ -1,3 +1,4 @@
+import type { WorkoutDatabase } from "../../lib/onDemandWorkouts.server"
 import { createServerFn } from "@tanstack/react-start"
 import { desc, eq } from "drizzle-orm"
 import { z } from "zod"
@@ -10,10 +11,12 @@ import {
   workoutLog,
   userProfile,
 } from "../../lib/schema"
-import { computeProgression } from "../../lib/rules"
+import { canApplyProgramRules, computeProgression } from "../../lib/rules"
 import type { ProgressionChange } from "./completeSession"
 
 export interface GetFeedbackDataResult {
+  returnTo?: "/" | "/on-demand-workouts"
+  pendingSync?: boolean
   units: "kg" | "lbs"
   workoutLogId: string
   sessionName: string
@@ -24,112 +27,131 @@ const inputSchema = z.object({
   workoutLogId: z.string().min(1),
 })
 
+export async function getFeedbackDataOperation(
+  database: WorkoutDatabase,
+  data: { workoutLogId: string }
+): Promise<GetFeedbackDataResult> {
+  const [profile] = await database
+    .select({ units: userProfile.units })
+    .from(userProfile)
+    .orderBy(desc(userProfile.createdAt))
+    .limit(1)
+  const { workoutLogId } = data
+
+  // Fetch workout log
+  const logs = await database
+    .select()
+    .from(workoutLog)
+    .where(eq(workoutLog.id, workoutLogId))
+    .limit(1)
+
+  if (logs.length === 0) {
+    throw new Error(`Workout log not found: ${workoutLogId}`)
+  }
+  const log = logs[0]
+
+  if (log.completedAt == null) {
+    throw new Error("Workout feedback is only available after completion.")
+  }
+
+  if (
+    !canApplyProgramRules(
+      log.sessionTemplateId ? "planned" : "on_demand_workout"
+    )
+  ) {
+    return {
+      units: log.runSnapshot?.units ?? profile?.units ?? "kg",
+      workoutLogId,
+      sessionName: log.runSnapshot?.title ?? "On-demand workout",
+      progressionChanges: [],
+      returnTo: "/on-demand-workouts",
+    }
+  }
+  if (!log.sessionTemplateId) throw new Error("Invalid source.")
+  // Fetch session template for the name
+  const templates = await database
+    .select()
+    .from(sessionTemplate)
+    .where(eq(sessionTemplate.id, log.sessionTemplateId))
+    .limit(1)
+
+  const sessionName = templates[0]?.dayLabel ?? "Workout"
+
+  // Fetch all set_log rows joined to planned_exercise and exercise
+  const allSets = await database
+    .select({
+      setLog: setLog,
+      planned: plannedExercise,
+      exercise: exercise,
+    })
+    .from(setLog)
+    .innerJoin(
+      plannedExercise,
+      eq(setLog.plannedExerciseId, plannedExercise.id)
+    )
+    .innerJoin(exercise, eq(plannedExercise.exerciseId, exercise.id))
+    .where(eq(setLog.workoutLogId, workoutLogId))
+
+  // Group sets by plannedExerciseId and compute progression
+  const setsByExercise = new Map<
+    string,
+    {
+      planned: (typeof allSets)[0]["planned"]
+      exercise: (typeof allSets)[0]["exercise"]
+      sets: (typeof allSets)[0]["setLog"][]
+    }
+  >()
+
+  for (const row of allSets) {
+    const key = row.planned.id
+    if (!setsByExercise.has(key)) {
+      setsByExercise.set(key, {
+        planned: row.planned,
+        exercise: row.exercise,
+        sets: [],
+      })
+    }
+    setsByExercise.get(key)!.sets.push(row.setLog)
+  }
+
+  const progressionChanges: ProgressionChange[] = []
+
+  for (const [, { planned, exercise: ex, sets }] of setsByExercise) {
+    const decision = computeProgression(
+      {
+        plannedExerciseId: planned.id,
+        sets: planned.sets,
+        repRange: planned.repRange,
+        loadKg: planned.loadKg,
+        rirTarget: planned.rirTarget,
+      },
+      sets.map((s) => ({
+        setNumber: s.setNumber,
+        weightKg: s.weightKg,
+        reps: s.reps,
+        rirActual: s.rirActual,
+      }))
+    )
+
+    if (decision.kind === "increase") {
+      progressionChanges.push({
+        plannedExerciseId: planned.id,
+        exerciseName: ex.name,
+        oldLoadKg: planned.loadKg,
+        newLoadKg: decision.newLoadKg,
+        reason: decision.reason,
+      })
+    }
+  }
+
+  return {
+    units: profile?.units ?? "kg",
+    workoutLogId,
+    sessionName,
+    progressionChanges,
+  }
+}
+
 export const getFeedbackDataFn = createServerFn({ method: "GET" })
   .inputValidator((data: unknown) => inputSchema.parse(data))
-  .handler(async ({ data }): Promise<GetFeedbackDataResult> => {
-    const [profile] = await db
-      .select({ units: userProfile.units })
-      .from(userProfile)
-      .orderBy(desc(userProfile.createdAt))
-      .limit(1)
-    const { workoutLogId } = data
-
-    // Fetch workout log
-    const logs = await db
-      .select()
-      .from(workoutLog)
-      .where(eq(workoutLog.id, workoutLogId))
-      .limit(1)
-
-    if (logs.length === 0) {
-      throw new Error(`Workout log not found: ${workoutLogId}`)
-    }
-    const log = logs[0]
-
-    if (log.completedAt == null) {
-      throw new Error("Workout feedback is only available after completion.")
-    }
-
-    // Fetch session template for the name
-    const templates = await db
-      .select()
-      .from(sessionTemplate)
-      .where(eq(sessionTemplate.id, log.sessionTemplateId))
-      .limit(1)
-
-    const sessionName = templates[0]?.dayLabel ?? "Workout"
-
-    // Fetch all set_log rows joined to planned_exercise and exercise
-    const allSets = await db
-      .select({
-        setLog: setLog,
-        planned: plannedExercise,
-        exercise: exercise,
-      })
-      .from(setLog)
-      .innerJoin(
-        plannedExercise,
-        eq(setLog.plannedExerciseId, plannedExercise.id)
-      )
-      .innerJoin(exercise, eq(plannedExercise.exerciseId, exercise.id))
-      .where(eq(setLog.workoutLogId, workoutLogId))
-
-    // Group sets by plannedExerciseId and compute progression
-    const setsByExercise = new Map<
-      string,
-      {
-        planned: (typeof allSets)[0]["planned"]
-        exercise: (typeof allSets)[0]["exercise"]
-        sets: (typeof allSets)[0]["setLog"][]
-      }
-    >()
-
-    for (const row of allSets) {
-      const key = row.planned.id
-      if (!setsByExercise.has(key)) {
-        setsByExercise.set(key, {
-          planned: row.planned,
-          exercise: row.exercise,
-          sets: [],
-        })
-      }
-      setsByExercise.get(key)!.sets.push(row.setLog)
-    }
-
-    const progressionChanges: ProgressionChange[] = []
-
-    for (const [, { planned, exercise: ex, sets }] of setsByExercise) {
-      const decision = computeProgression(
-        {
-          plannedExerciseId: planned.id,
-          sets: planned.sets,
-          repRange: planned.repRange,
-          loadKg: planned.loadKg,
-          rirTarget: planned.rirTarget,
-        },
-        sets.map((s) => ({
-          setNumber: s.setNumber,
-          weightKg: s.weightKg,
-          reps: s.reps,
-          rirActual: s.rirActual,
-        }))
-      )
-
-      if (decision.kind === "increase") {
-        progressionChanges.push({
-          plannedExerciseId: planned.id,
-          exerciseName: ex.name,
-          oldLoadKg: planned.loadKg,
-          newLoadKg: decision.newLoadKg,
-          reason: decision.reason,
-        })
-      }
-    }
-
-    return {
-      units: profile?.units ?? "kg",
-      workoutLogId,
-      sessionName,
-      progressionChanges,
-    }
-  })
+  .handler(({ data }) => getFeedbackDataOperation(db, data))

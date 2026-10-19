@@ -1,7 +1,6 @@
-import path from "node:path"
 import Database from "better-sqlite3"
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3"
-import { migrate } from "drizzle-orm/better-sqlite3/migrator"
+import { migrateWorkoutDatabase } from "../../scripts/migrate"
 import * as schema from "../../lib/schema"
 import type {
   InsertExercise,
@@ -33,7 +32,7 @@ export function createWorkoutTestDb(): WorkoutTestDb {
   sqlite.pragma("foreign_keys = ON")
 
   const db = drizzle({ client: sqlite, schema })
-  migrate(db, { migrationsFolder: path.resolve(process.cwd(), "drizzle") })
+  migrateWorkoutDatabase(db, sqlite)
 
   let nextId = 1
   const makeId = (prefix: string) => `${prefix}-${nextId++}`

@@ -43,7 +43,13 @@ function makeSessionExercise(
   exerciseOverrides?: Partial<SelectExercise>
 ): SessionExercise {
   return {
-    planned: makePlannedExercise(plannedOverrides),
+    prescription: {
+      ...makePlannedExercise(plannedOverrides),
+      ref: {
+        kind: "planned",
+        plannedExerciseId: plannedOverrides?.id ?? "pe-1",
+      },
+    },
     exercise: makeExercise(exerciseOverrides),
     priorPerformance: null,
   }
@@ -54,7 +60,7 @@ function makePersistedSet(
 ): PersistedLoggedSet {
   return {
     setLogId: "set-log-1",
-    plannedExerciseId: "pe-1",
+    prescriptionRef: { kind: "planned", plannedExerciseId: "pe-1" },
     setNumber: 1,
     weightKg: 60,
     reps: 8,
@@ -69,7 +75,13 @@ function makeInitPayload(
 ): SessionInitPayload {
   return {
     workoutLogId: "wl-1",
-    sessionTemplateId: "st-1",
+    source: {
+      kind: "planned",
+      sessionTemplateId: "st-1",
+      programId: "program-1",
+    },
+    title: "Workout",
+    units: "kg",
     programName: "Test Program",
     exercises: [makeSessionExercise()],
     startedAt: new Date("2024-06-01T10:00:00Z"),
@@ -116,7 +128,7 @@ describe("initSession", () => {
         ],
         persistedSets: [
           makePersistedSet({
-            plannedExerciseId: "pe-1",
+            prescriptionRef: { kind: "planned", plannedExerciseId: "pe-1" },
             setNumber: 1,
           }),
         ],
@@ -168,10 +180,13 @@ describe("initSession", () => {
           ),
         ],
         persistedSets: [
-          makePersistedSet({ plannedExerciseId: "pe-1", setNumber: 1 }),
+          makePersistedSet({
+            prescriptionRef: { kind: "planned", plannedExerciseId: "pe-1" },
+            setNumber: 1,
+          }),
           makePersistedSet({
             setLogId: "set-log-2",
-            plannedExerciseId: "pe-1",
+            prescriptionRef: { kind: "planned", plannedExerciseId: "pe-1" },
             setNumber: 3,
             loggedAt: new Date("2024-06-01T10:01:00Z"),
           }),
@@ -190,10 +205,13 @@ describe("initSession", () => {
       makeInitPayload({
         exercises: [makeSessionExercise({ id: "pe-1", sets: 2 })],
         persistedSets: [
-          makePersistedSet({ plannedExerciseId: "pe-1", setNumber: 1 }),
+          makePersistedSet({
+            prescriptionRef: { kind: "planned", plannedExerciseId: "pe-1" },
+            setNumber: 1,
+          }),
           makePersistedSet({
             setLogId: "set-log-2",
-            plannedExerciseId: "pe-1",
+            prescriptionRef: { kind: "planned", plannedExerciseId: "pe-1" },
             setNumber: 2,
             loggedAt: new Date("2024-06-01T10:01:00Z"),
           }),
@@ -215,7 +233,7 @@ describe("commitSet", () => {
     vi.useRealTimers()
   })
 
-  it("keeps non-final sets optimistic while syncing in the background", async () => {
+  it("waits for durable local acceptance before advancing a non-final set", async () => {
     const deferred = makeDeferredPersist()
     const commitPromise = useSessionStore.getState().commitSet({
       weightKg: 60,
@@ -225,8 +243,8 @@ describe("commitSet", () => {
     })
 
     const pendingState = useSessionStore.getState()
-    expect(pendingState.phase).toBe("resting")
-    expect(pendingState.isSubmitting).toBe(false)
+    expect(pendingState.phase).toBe("active_set")
+    expect(pendingState.isSubmitting).toBe(true)
     expect(pendingState.loggedSets[0].syncStatus).toBe("pending")
 
     deferred.resolve("srv-1")
@@ -331,7 +349,7 @@ describe("commitSet", () => {
       onPersist: failingPersist,
     })
 
-    expect(useSessionStore.getState().phase).toBe("resting")
+    expect(useSessionStore.getState().phase).toBe("active_set")
     expect(useSessionStore.getState().loggedSets).toHaveLength(1)
     expect(useSessionStore.getState().loggedSets[0].syncStatus).toBe("failed")
 
@@ -365,8 +383,16 @@ describe("timer controls", () => {
   })
 
   it("advances the timer toward the next active set", () => {
-    useSessionStore.getState().tickTimer()
+    vi.advanceTimersByTime(1000)
     expect(useSessionStore.getState().restSecondsRemaining).toBe(89)
+  })
+
+  it("uses the wall-clock deadline after background suspension", () => {
+    vi.setSystemTime(Date.now() + 120_000)
+    useSessionStore.getState().tickTimer()
+    expect(useSessionStore.getState().phase).toBe("active_set")
+    expect(useSessionStore.getState().currentSetNumber).toBe(2)
+    expect(useSessionStore.getState().restSecondsRemaining).toBe(0)
   })
 
   it("skipRest clears the interval and advances to the next set", () => {

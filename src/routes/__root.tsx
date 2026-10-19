@@ -1,5 +1,8 @@
+import { useEffect } from "react"
+import { WorkoutSyncStatus } from "../components/WorkoutSyncStatus"
 import {
   HeadContent,
+  ClientOnly,
   Link,
   Outlet,
   Scripts,
@@ -29,6 +32,7 @@ export const Route = createRootRoute({
       },
     ],
     links: [
+      { rel: "manifest", href: "/manifest.json" },
       {
         rel: "stylesheet",
         href: appCss,
@@ -77,15 +81,30 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 // Layout: safe to use router hooks — conditionally renders chrome
 function RootLayout() {
+  useEffect(() => {
+    let stop: (() => void) | undefined
+    let active = true
+    void import("../lib/offline/workoutSync").then((module) => {
+      if (active) stop = module.startWorkoutSync()
+    })
+    return () => {
+      active = false
+      stop?.()
+    }
+  }, [])
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const bare =
     pathname === "/onboarding" ||
     pathname.startsWith("/session/") ||
+    pathname.startsWith("/workout/") ||
     pathname.startsWith("/feedback/")
 
   return (
     <>
-      {!bare && <Header />}
+      <ClientOnly>
+        {!bare && <Header />}
+        <WorkoutSyncStatus />
+      </ClientOnly>
       <Outlet />
     </>
   )
