@@ -1,5 +1,7 @@
 # On-demand workout architecture
 
+Provider update (October 24, 2026): the implementation now routes all operations through `AI_PROVIDER`, including Ollama. The original Sonnet-only requirements below are superseded by [local setup](local-ollama.md) and the current operations guide. Cloud on-demand attempts retain a 90-second timeout; Ollama uses `OLLAMA_TIMEOUT_MS` (five minutes by default).
+
 Architecture proposal, based on the repository inspected on October 19, 2026. This document specifies future work; it does not implement the feature or modify the live database.
 
 Implementation and operating instructions now accompany this design in [on-demand-workouts-operations.md](on-demand-workouts-operations.md). The proposal and its original verification note below remain the design baseline; implementation tests live beside the relevant operations and in `e2e/on-demand-workouts.spec.ts`.

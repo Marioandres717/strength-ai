@@ -200,16 +200,20 @@ export type SwapOutput = z.infer<typeof SwapSchema>
 // ── Logging ────────────────────────────────────────────────────────────────────
 
 function logSuccess(fnName: string, latencyMs: number, summary: string): void {
-  console.warn(`[AI] ${fnName} completed in ${latencyMs}ms | ${summary}`)
+  console.warn(
+    `[AI] ${fnName} ${providerLabel()} completed in ${latencyMs}ms | ${summary}`
+  )
 }
 
 function logFailure(fnName: string, latencyMs: number, error: string): void {
-  console.error(`[AI] ${fnName} failed in ${latencyMs}ms | ${error}`)
+  console.error(
+    `[AI] ${fnName} ${providerLabel()} failed in ${latencyMs}ms | ${error}`
+  )
 }
 
 // ── SDK error wrapping ─────────────────────────────────────────────────────────
 
-export type AIProviderName = "anthropic" | "openai"
+export type AIProviderName = "anthropic" | "openai" | "ollama"
 
 interface StructuredGenerationRequest<T> {
   systemPrompt: string
@@ -230,12 +234,149 @@ export function resolveAIProvider(
   value = process.env.AI_PROVIDER
 ): AIProviderName {
   if (!value || value === "anthropic") return "anthropic"
-  if (value === "openai") return "openai"
+  if (value === "openai" || value === "ollama") return value
 
   throw new AICallError(
     "API_ERROR",
-    `Unsupported AI_PROVIDER "${value}". Use "anthropic" or "openai".`
+    `Unsupported AI_PROVIDER "${value}". Use "anthropic", "openai", or "ollama".`
   )
+}
+
+export function ollamaConfiguration(): {
+  baseUrl: string
+  model: string
+  timeout: number
+  numCtx: number
+} {
+  const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434"
+  const model = process.env.OLLAMA_MODEL ?? "qwen3:14b"
+  const positiveInteger = (name: string, fallback: number): number => {
+    const value = Number(process.env[name] ?? fallback)
+    if (!Number.isSafeInteger(value) || value <= 0 || value > 2147483647) {
+      throw new AICallError(
+        "API_ERROR",
+        `${name} must be a positive integer no greater than 2147483647`
+      )
+    }
+    return value
+  }
+  try {
+    const url = new URL(baseUrl)
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    )
+      throw new Error("Invalid URL")
+  } catch {
+    throw new AICallError(
+      "API_ERROR",
+      "OLLAMA_BASE_URL must be an HTTP(S) URL without credentials, query, or fragment"
+    )
+  }
+  if (!model.trim())
+    throw new AICallError("API_ERROR", "OLLAMA_MODEL must not be empty")
+  return {
+    baseUrl: baseUrl.replace(/\/+$/, ""),
+    model,
+    timeout: positiveInteger("OLLAMA_TIMEOUT_MS", 300000),
+    numCtx: positiveInteger("OLLAMA_NUM_CTX", 32768),
+  }
+}
+
+export function validateAIConfiguration(): void {
+  const name = resolveAIProvider()
+  if (name === "ollama") {
+    ollamaConfiguration()
+    return
+  }
+  const keyName = name === "openai" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY"
+  const key = process.env[keyName]?.trim()
+  if (!key || key === "your_api_key_here")
+    throw new AICallError(
+      "MISSING_API_KEY",
+      `Configure ${keyName} before generating.`
+    )
+}
+
+function providerLabel(): string {
+  const name = resolveAIProvider()
+  const model =
+    name === "ollama"
+      ? ollamaConfiguration().model
+      : name === "openai"
+        ? (process.env.OPENAI_MODEL ?? OPENAI_MODEL)
+        : (process.env.ANTHROPIC_MODEL ?? ANTHROPIC_MODEL)
+  return `provider=${name} model=${model}`
+}
+
+class OllamaProvider implements AIProvider {
+  async generateObject<T>(request: StructuredGenerationRequest<T>): Promise<T> {
+    const config = ollamaConfiguration()
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), config.timeout)
+    try {
+      const response = await fetch(`${config.baseUrl}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: config.model,
+          messages: [
+            { role: "system", content: request.systemPrompt },
+            { role: "user", content: request.userPrompt },
+          ],
+          stream: false,
+          think: false,
+          format: z.toJSONSchema(request.schema),
+          options: {
+            temperature: 0,
+            num_predict: request.maxOutputTokens,
+            num_ctx: config.numCtx,
+          },
+        }),
+      })
+      if (!response.ok)
+        throw new AICallError(
+          "API_ERROR",
+          response.status === 404
+            ? `Ollama model ${config.model} is unavailable. Run ollama pull ${config.model} and check OLLAMA_BASE_URL.`
+            : `Ollama request failed (HTTP ${response.status}). Check the Ollama server.`
+        )
+      try {
+        const envelope = z
+          .object({
+            done: z.literal(true),
+            done_reason: z.string().optional(),
+            message: z.object({ content: z.string().min(1) }),
+          })
+          .parse(await response.json())
+        if (envelope.done_reason === "length")
+          throw new Error("Truncated output")
+        return request.schema.parse(JSON.parse(envelope.message.content))
+      } catch (error) {
+        if (controller.signal.aborted) throw error
+        throw new AICallError(
+          "VALIDATION_ERROR",
+          "Ollama returned incomplete or invalid structured output",
+          error
+        )
+      }
+    } catch (error) {
+      if (error instanceof AICallError) throw error
+      throw new AICallError(
+        "API_ERROR",
+        controller.signal.aborted
+          ? `Ollama exceeded the ${config.timeout}ms deadline. Adjust OLLAMA_TIMEOUT_MS or use a smaller model.`
+          : "Cannot reach Ollama. Start Ollama and check OLLAMA_BASE_URL.",
+        error
+      )
+    } finally {
+      clearTimeout(timer)
+    }
+  }
 }
 
 class AnthropicProvider implements AIProvider {
@@ -296,15 +437,18 @@ class OpenAIProvider implements AIProvider {
   }
 
   async generateObject<T>(request: StructuredGenerationRequest<T>): Promise<T> {
-    const response = await this.getClient().responses.parse({
-      model: process.env.OPENAI_MODEL ?? OPENAI_MODEL,
-      instructions: request.systemPrompt,
-      input: request.userPrompt,
-      max_output_tokens: request.maxOutputTokens,
-      temperature: 0,
-      store: false,
-      text: { format: zodTextFormat(request.schema, request.schemaName) },
-    })
+    const response = await this.getClient().responses.parse(
+      {
+        model: request.model ?? process.env.OPENAI_MODEL ?? OPENAI_MODEL,
+        instructions: request.systemPrompt,
+        input: request.userPrompt,
+        max_output_tokens: request.maxOutputTokens,
+        temperature: 0,
+        store: false,
+        text: { format: zodTextFormat(request.schema, request.schemaName) },
+      },
+      { maxRetries: request.maxRetries, timeout: request.timeout }
+    )
 
     if (!response.output_parsed) {
       throw new AICallError(
@@ -320,10 +464,15 @@ let provider: AIProvider | null = null
 let configuredProvider: AIProviderName | null = null
 
 function getProvider(): AIProvider {
+  validateAIConfiguration()
   const providerName = resolveAIProvider()
   if (!provider || configuredProvider !== providerName) {
     provider =
-      providerName === "openai" ? new OpenAIProvider() : new AnthropicProvider()
+      providerName === "ollama"
+        ? new OllamaProvider()
+        : providerName === "openai"
+          ? new OpenAIProvider()
+          : new AnthropicProvider()
     configuredProvider = providerName
   }
   return provider
@@ -516,7 +665,7 @@ function resolveNamesInSwap(
 }
 
 // ── Exported functions ─────────────────────────────────────────────────────────
-// All provider calls go through these three functions only.
+// All provider calls go through these four functions only.
 // Never import or call a provider SDK directly from routes or server functions.
 
 export async function generatePlan(
@@ -524,7 +673,7 @@ export async function generatePlan(
 ): Promise<PlanGenerationOutput> {
   const aiProvider = getProvider()
   const start = Date.now()
-  const summary = `goal=${input.goal} exp=${input.experience} sessions=${input.sessionsPerWeek} exercises=${input.exerciseLibrary.length}`
+  const summary = "validated response"
 
   try {
     const output = await aiProvider.generateObject({
@@ -539,11 +688,11 @@ export async function generatePlan(
     return resolved
   } catch (err) {
     if (err instanceof AICallError) {
-      logFailure("generatePlan", Date.now() - start, err.message)
+      logFailure("generatePlan", Date.now() - start, err.code)
       throw err
     }
     const wrapped = wrapProviderError(err, "generatePlan")
-    logFailure("generatePlan", Date.now() - start, wrapped.message)
+    logFailure("generatePlan", Date.now() - start, wrapped.code)
     throw wrapped
   }
 }
@@ -553,7 +702,7 @@ export async function adaptWeek(
 ): Promise<AdaptationOutput> {
   const aiProvider = getProvider()
   const start = Date.now()
-  const summary = `week=${input.weekNumber} sessions=${input.sessions.length} logs=${input.logs.length}`
+  const summary = "validated response"
 
   try {
     const output = await aiProvider.generateObject({
@@ -568,11 +717,11 @@ export async function adaptWeek(
     return output
   } catch (err) {
     if (err instanceof AICallError) {
-      logFailure("adaptWeek", Date.now() - start, err.message)
+      logFailure("adaptWeek", Date.now() - start, err.code)
       throw err
     }
     const wrapped = wrapProviderError(err, "adaptWeek")
-    logFailure("adaptWeek", Date.now() - start, wrapped.message)
+    logFailure("adaptWeek", Date.now() - start, wrapped.code)
     throw wrapped
   }
 }
@@ -580,7 +729,7 @@ export async function adaptWeek(
 export async function swapExercise(input: SwapInput): Promise<SwapOutput> {
   const aiProvider = getProvider()
   const start = Date.now()
-  const summary = `replacing="${input.exerciseToReplace.name}" equipment=${input.availableEquipment.length}`
+  const summary = "validated response"
 
   try {
     const output = await aiProvider.generateObject({
@@ -596,11 +745,11 @@ export async function swapExercise(input: SwapInput): Promise<SwapOutput> {
     return resolved
   } catch (err) {
     if (err instanceof AICallError) {
-      logFailure("swapExercise", Date.now() - start, err.message)
+      logFailure("swapExercise", Date.now() - start, err.code)
       throw err
     }
     const wrapped = wrapProviderError(err, "swapExercise")
-    logFailure("swapExercise", Date.now() - start, wrapped.message)
+    logFailure("swapExercise", Date.now() - start, wrapped.code)
     throw wrapped
   }
 }
@@ -642,19 +791,30 @@ export async function generateOnDemandWorkout(
   input: GenerateOnDemandWorkoutInput,
   context: OnDemandWorkoutGenerationContext
 ): Promise<OnDemandWorkoutOutput> {
+  const aiProvider = getProvider()
+  const start = Date.now()
   try {
-    const output = await new AnthropicProvider().generateObject({
+    const output = await aiProvider.generateObject({
       systemPrompt: ON_DEMAND_WORKOUT_GENERATION_PROMPT,
       userPrompt: buildOnDemandWorkoutUserMessage(input, context),
       schemaName: "on_demand_workout",
       schema: OnDemandWorkoutOutputSchema,
       maxOutputTokens: 4096,
-      model: "claude-sonnet-4-6",
       maxRetries: 0,
       timeout: 90000,
     })
+    logSuccess(
+      "generateOnDemandWorkout",
+      Date.now() - start,
+      "validated response"
+    )
     return output.result
   } catch (error) {
-    throw wrapProviderError(error, "generateOnDemandWorkout")
+    const wrapped =
+      error instanceof AICallError
+        ? error
+        : wrapProviderError(error, "generateOnDemandWorkout")
+    logFailure("generateOnDemandWorkout", Date.now() - start, wrapped.code)
+    throw wrapped
   }
 }

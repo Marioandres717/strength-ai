@@ -1,10 +1,13 @@
 // @vitest-environment node
-import { expect, it } from "vitest"
+import { afterEach, expect, it, vi } from "vitest"
 import { generateOnDemandWorkout, OnDemandWorkoutOutputSchema } from "./ai"
 
+afterEach(() => vi.unstubAllEnvs())
+
 it.skipIf(process.env.RUN_ON_DEMAND_AI_SMOKE !== "1")(
-  "accepts the structured schema at the live Sonnet boundary (one paid call)",
+  "accepts the structured schema at the live Anthropic boundary (one paid call)",
   async () => {
+    vi.stubEnv("AI_PROVIDER", "anthropic")
     const result = await generateOnDemandWorkout(
       {
         requestId: crypto.randomUUID(),

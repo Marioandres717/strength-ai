@@ -1,6 +1,12 @@
 import { createHash, randomUUID } from "node:crypto"
 import { and, desc, eq, isNull } from "drizzle-orm"
-import { generateOnDemandWorkout, OnDemandWorkoutOutputSchema } from "./ai"
+import {
+  AICallError,
+  validateAIConfiguration,
+  resolveAIProvider,
+  generateOnDemandWorkout,
+  OnDemandWorkoutOutputSchema,
+} from "./ai"
 import {
   buildOnDemandWorkoutUserMessage,
   ON_DEMAND_WORKOUT_GENERATION_PROMPT,
@@ -290,7 +296,9 @@ export function getOnDemandWorkoutGenerationOperation(
     request.errorCode ?? "FAILED",
     request.errorCode === "DURATION"
       ? "The generated workout exceeds the time budget. The attempt was used; start a new generation to try again."
-      : "The workout could not be generated or validated. Start a new request to try again.",
+      : request.errorCode === "LOCAL_PROVIDER"
+        ? "Local generation failed. Check that Ollama is running, the configured model is installed, and the local timeout is sufficient before starting a new request."
+        : "The workout could not be generated or validated. Start a new request to try again.",
     request.callStartedAt !== null
   )
 }
@@ -499,15 +507,19 @@ export async function generateOnDemandWorkoutOperation(
       directory
     )
   }
-  if (
-    !process.env.ANTHROPIC_API_KEY ||
-    process.env.ANTHROPIC_API_KEY === "your_api_key_here"
-  )
+  try {
+    validateAIConfiguration()
+  } catch (error) {
     return fail(
       input.requestId,
-      "MISSING_KEY",
-      "Configure the Anthropic key before generating."
+      error instanceof AICallError && error.code === "MISSING_API_KEY"
+        ? "MISSING_KEY"
+        : "PRE_DISPATCH",
+      error instanceof AICallError
+        ? error.message
+        : "Check AI provider configuration."
     )
+  }
   let context: OnDemandWorkoutGenerationContext
   try {
     context = buildGenerationContext(database, input)
@@ -583,7 +595,12 @@ export async function generateOnDemandWorkoutOperation(
   } catch {
     database
       .update(requests)
-      .set({ status: "failed", errorCode: "PROVIDER", updatedAt: new Date() })
+      .set({
+        status: "failed",
+        errorCode:
+          resolveAIProvider() === "ollama" ? "LOCAL_PROVIDER" : "PROVIDER",
+        updatedAt: new Date(),
+      })
       .where(eq(requests.id, input.requestId))
       .run()
     return getOnDemandWorkoutGenerationOperation(database, input.requestId)

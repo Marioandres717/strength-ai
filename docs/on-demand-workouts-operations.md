@@ -1,6 +1,6 @@
 # On-demand workout operation
 
-The library is at `/on-demand-workouts`. Generation needs an Anthropic key even when other AI features use OpenAI. The default is five dispatched attempts per server application day, controlled by `ON_DEMAND_WORKOUT_DAILY_CAP` and `APP_TIMEZONE` (default `America/Regina`). Dispatched failures count; polling and retrying a save do not. Repeating a request ID never dispatches another model call. Regeneration creates another library entry.
+The library is at `/on-demand-workouts`. Generation uses AI_PROVIDER and its configured model: Anthropic/OpenAI require their respective key; Ollama requires no cloud key. See [local setup](local-ollama.md). The default is five dispatched attempts per server application day, controlled by `ON_DEMAND_WORKOUT_DAILY_CAP` and `APP_TIMEZONE` (default `America/Regina`). Dispatched failures count; polling and retrying a save do not. Repeating a request ID never dispatches another model call. Regeneration creates another library entry.
 
 ## Prepare a device for offline training
 
@@ -28,4 +28,4 @@ Backups now copy recovery receipts into `<backup>.db.recovery/` alongside the da
 
 `pnpm validate` runs type checking, lint, formatting and Vitest. Migration tests use file-backed databases and verify preservation, integrity, rollback, and repeated startup. Generation integrations mock the Anthropic client while using real migrated SQLite. Browser coverage in `e2e/on-demand-workouts.spec.ts` exercises production-shell cold offline launch, rest/resume, completion/feedback, tombstone replay, source isolation and failed device writes. Run `pnpm build` and `pnpm exec playwright test --grep-invert @visual` for production regression coverage.
 
-`RUN_ON_DEMAND_AI_SMOKE=1` enables the separate opt-in live schema smoke test in `lib/onDemandWorkout.live.test.ts`; it makes one paid Sonnet call. Normal tests do not call a live provider.
+`RUN_ON_DEMAND_AI_SMOKE=1` enables the separate opt-in live schema smoke test in `lib/onDemandWorkout.live.test.ts`; it makes one paid Anthropic call using ANTHROPIC_MODEL (Sonnet by default). Normal tests do not call a live provider.

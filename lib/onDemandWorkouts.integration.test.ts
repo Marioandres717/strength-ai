@@ -1,4 +1,5 @@
 import type * as AnthropicModule from "@anthropic-ai/sdk"
+import type * as OpenAIModule from "openai"
 import { getFeedbackDataOperation } from "../src/functions/getFeedbackData"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { mkdtempSync, rmSync } from "node:fs"
@@ -39,6 +40,16 @@ import {
 import { workoutHistory } from "./workoutHistory.server"
 
 const { parse } = vi.hoisted(() => ({ parse: vi.fn() }))
+const { openaiParse } = vi.hoisted(() => ({ openaiParse: vi.fn() }))
+vi.mock("openai", async (importOriginal) => {
+  const actual = await importOriginal<typeof OpenAIModule>()
+  return {
+    ...actual,
+    default: class {
+      responses = { parse: openaiParse }
+    },
+  }
+})
 vi.mock("@anthropic-ai/sdk", async (importOriginal) => {
   const actual = await importOriginal<typeof AnthropicModule>()
   return {
@@ -52,8 +63,10 @@ let context: ReturnType<typeof createWorkoutTestDb>, directory: string
 beforeEach(() => {
   context = createWorkoutTestDb()
   directory = mkdtempSync(join(tmpdir(), "strength-generation-"))
+  vi.stubEnv("AI_PROVIDER", "anthropic")
   vi.stubEnv("ANTHROPIC_API_KEY", "test-key")
   parse.mockReset()
+  openaiParse.mockReset()
 })
 afterEach(() => {
   context.close()
@@ -111,6 +124,41 @@ async function generate() {
 }
 
 describe("generation with real SQLite and the Anthropic boundary", () => {
+  it("routes to OpenAI with its configured model and one 90-second attempt", async () => {
+    vi.stubEnv("AI_PROVIDER", "openai")
+    vi.stubEnv("OPENAI_API_KEY", "test-key")
+    vi.stubEnv("OPENAI_MODEL", "configured-openai-model")
+    vi.stubEnv("ANTHROPIC_API_KEY", "")
+    const ex = context.insertExercise({ name: "Back Squat" })
+    openaiParse.mockResolvedValue({ output_parsed: { result: output(ex.id) } })
+    const request = input()
+    await expect(
+      generateOnDemandWorkoutOperation(context.db, request, directory)
+    ).resolves.toMatchObject({ status: "saved" })
+    await expect(
+      generateOnDemandWorkoutOperation(context.db, request, directory)
+    ).resolves.toMatchObject({ status: "saved" })
+    expect(openaiParse).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        model: "configured-openai-model",
+        max_output_tokens: 4096,
+      }),
+      { maxRetries: 0, timeout: 90000 }
+    )
+    expect(parse).not.toHaveBeenCalled()
+  })
+  it("rejects missing selected-provider credentials before reserving an attempt", async () => {
+    vi.stubEnv("AI_PROVIDER", "openai")
+    vi.stubEnv("OPENAI_API_KEY", "")
+    await expect(
+      generateOnDemandWorkoutOperation(context.db, input(), directory)
+    ).resolves.toMatchObject({ status: "failed", code: "MISSING_KEY" })
+    expect(
+      context.db.select().from(onDemandWorkoutGenerationRequest).all()
+    ).toHaveLength(0)
+    expect(parse).not.toHaveBeenCalled()
+    expect(openaiParse).not.toHaveBeenCalled()
+  })
   it("uses explicit experience and units and keeps preview units after profile changes", async () => {
     context.db
       .insert(userProfile)
@@ -149,8 +197,8 @@ describe("generation with real SQLite and the Anthropic boundary", () => {
         .units
     ).toBe("lbs")
   })
-  it("makes one explicit Sonnet attempt, saves immediately, clamps loads and replays by request ID", async () => {
-    vi.stubEnv("AI_PROVIDER", "openai")
+  it("makes one configured Anthropic attempt, saves immediately, clamps loads and replays by request ID", async () => {
+    vi.stubEnv("AI_PROVIDER", "anthropic")
     vi.stubEnv("ANTHROPIC_MODEL", "other-model")
     const { request, result, preview } = await generate()
     expect(parse).toHaveBeenCalledTimes(1)
@@ -158,7 +206,7 @@ describe("generation with real SQLite and the Anthropic boundary", () => {
       Record<string, unknown>,
       unknown,
     ]
-    expect(parameters.model).toBe("claude-sonnet-4-6")
+    expect(parameters.model).toBe("other-model")
     expect(parameters.max_tokens).toBe(4096)
     expect(JSON.stringify(parameters.output_config)).toContain(
       '"type":"json_schema"'

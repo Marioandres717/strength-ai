@@ -12,7 +12,7 @@ AI-powered personal strength training coach built for a single user. Generates s
 
 - Node.js 24
 - pnpm 11.18.0 (via Corepack)
-- Anthropic or OpenAI API key
+- Anthropic/OpenAI API key, or local Ollama ([setup](docs/local-ollama.md))
 
 ### Installation
 
@@ -92,7 +92,7 @@ comparisons.
 | ---------- | --------------------------------------- |
 | Framework  | TanStack Start (Vite + TanStack Router) |
 | Database   | Drizzle ORM + better-sqlite3            |
-| AI         | Anthropic or OpenAI SDK (configurable)  |
+| AI         | Anthropic, OpenAI, or local Ollama      |
 | Validation | Zod (AI output schemas)                 |
 | State      | Zustand (workout execution only)        |
 | Testing    | Vitest + happy-dom                      |
