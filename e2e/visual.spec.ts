@@ -18,7 +18,8 @@ test.describe("workout states", () => {
   test.use({ scenario: "visual-workout" })
 
   test.beforeEach(async ({ page }) => {
-    await page.clock.install({ time: new Date(E2E_VISUAL_TIMESTAMP) })
+    // Freeze elapsed/rest calculations while letting hydration timers run.
+    await page.clock.setFixedTime(new Date(E2E_VISUAL_TIMESTAMP))
   })
 
   test("active set @visual", async ({ page }) => {
