@@ -30,6 +30,10 @@ export function OfflineWorkoutAvailability({ id }: { id: string }) {
       navigator.serviceWorker?.removeEventListener("controllerchange", update)
     }
   }, [id])
+  return <OfflineAvailabilityMessage ready={ready} />
+}
+
+export function OfflineAvailabilityMessage({ ready }: { ready: boolean }) {
   return (
     <p className="text-muted text-xs">
       {ready

@@ -8,7 +8,10 @@
   "ignoreFiles": [
     "src/components/ThemeToggle.tsx",
     "src/components/ui/progress.tsx",
-    "src/components/ui/tabs.tsx"
+    "src/components/ui/tabs.tsx",
+    "**/*.stories.tsx",
+    ".storybook/*",
+    "storybook-static/**"
   ],
   "ignoreIssues": {
     "lib/ai.ts": ["exports", "types"],
@@ -18,6 +21,7 @@
     "src/components/ui/field.tsx": ["exports"],
     "src/functions/**/*.ts": ["exports", "types"],
     "src/stores/sessionStore.ts": ["types"],
-    "src/test/utils.tsx": ["exports"]
+    "src/test/utils.tsx": ["exports"],
+    "src/components/ui/tabs.tsx": ["exports"]
   }
 }

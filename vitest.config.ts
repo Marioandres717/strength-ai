@@ -1,17 +1,28 @@
 import { configDefaults, defineConfig } from "vitest/config"
 import react from "@vitejs/plugin-react"
 import { resolve } from "path"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import { storybookTest } from "@storybook/addon-vitest/vitest-plugin"
+const dirname =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : path.dirname(fileURLToPath(import.meta.url))
 
+// More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "./src"),
+      "#": resolve(__dirname, "./src"),
+    },
+  },
   test: {
-    environment: "happy-dom",
-    globals: true,
-    setupFiles: ["./src/test/setup.ts"],
-    exclude: [...configDefaults.exclude, "e2e/**", "e2e-dev/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
+      include: ["src/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
       exclude: [
         "node_modules/",
         "src/test/",
@@ -20,11 +31,39 @@ export default defineConfig({
         "dist/",
       ],
     },
-  },
-  resolve: {
-    alias: {
-      "@": resolve(__dirname, "./src"),
-      "#": resolve(__dirname, "./src"),
-    },
+    projects: [
+      {
+        extends: true,
+        test: {
+          environment: "happy-dom",
+          globals: true,
+          setupFiles: ["./src/test/setup.ts"],
+          exclude: [...configDefaults.exclude, "e2e/**", "e2e-dev/**"],
+        },
+      },
+      {
+        extends: true,
+        plugins: [
+          // The plugin will run tests for the stories defined in your Storybook config
+          // See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
+          storybookTest({
+            configDir: path.join(dirname, ".storybook"),
+          }),
+        ],
+        test: {
+          name: "storybook",
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: "playwright",
+            instances: [
+              {
+                browser: "chromium",
+              },
+            ],
+          },
+        },
+      },
+    ],
   },
 })

@@ -3,7 +3,10 @@ import { render, waitFor, act } from "../test/utils"
 import { makeWizardData } from "../test/utils"
 import { PlanGenerationScreen } from "./PlanGenerationScreen"
 
-const hasKey = !!process.env.ANTHROPIC_API_KEY
+const hasKey =
+  process.env.RUN_LIVE_AI_TESTS === "1" &&
+  !!process.env.ANTHROPIC_API_KEY &&
+  (!process.env.AI_PROVIDER || process.env.AI_PROVIDER === "anthropic")
 
 describe.skipIf(!hasKey)(
   "PlanGenerationScreen integration (real generatePlanFn)",

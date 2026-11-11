@@ -8,7 +8,9 @@ import testingLibrary from "eslint-plugin-testing-library"
 import prettier from "eslint-config-prettier"
 
 export default [
-  { ignores: ["test-results/**", "playwright-report/**"] },
+  {
+    ignores: ["test-results/**", "playwright-report/**", "storybook-static/**"],
+  },
   // Base JavaScript rules
   js.configs.recommended,
 

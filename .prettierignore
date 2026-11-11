@@ -27,3 +27,6 @@ yarn.lock
 .agents
 .claude
 .vscode
+
+# Storybook build output
+storybook-static

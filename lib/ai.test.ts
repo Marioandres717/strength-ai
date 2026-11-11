@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import {
   AICallError,
   AdaptationSchema,
@@ -123,7 +123,12 @@ describe("resolveExerciseName", () => {
 
 describe("resolveAIProvider", () => {
   it("defaults to Anthropic when no provider is configured", () => {
-    expect(resolveAIProvider(undefined)).toBe("anthropic")
+    vi.stubEnv("AI_PROVIDER", undefined)
+    try {
+      expect(resolveAIProvider()).toBe("anthropic")
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it("accepts the supported provider names", () => {
@@ -480,7 +485,10 @@ describe("buildSwapUserMessage", () => {
 
 // ── Integration tests (require ANTHROPIC_API_KEY) ─────────────────────────────
 
-const hasKey = !!process.env.ANTHROPIC_API_KEY
+const hasKey =
+  process.env.RUN_LIVE_AI_TESTS === "1" &&
+  !!process.env.ANTHROPIC_API_KEY &&
+  (!process.env.AI_PROVIDER || process.env.AI_PROVIDER === "anthropic")
 
 describe.skipIf(!hasKey)("generatePlan integration", () => {
   it("returns a valid 4-week plan with coach notes and library-matching exercise names", async () => {

@@ -47,6 +47,14 @@ and one primary action at a time.
 - Progression, fatigue/deload rules, and exercise ordering are deterministic
   logic in `lib/rules.ts`, not AI judgments. Keep compounds before isolations.
 
+## Storybook
+
+- Add colocated stories for new components and pages, and update stories when
+  their behavior or states change. Group them by feature in the sidebar.
+- Show representative states with realistic fixtures. Keep stories repeatable
+  and avoid real server calls or persistent device data.
+- Run `pnpm build-storybook` when adding or changing stories.
+
 ## Quality and verification
 
 - Keep TypeScript strict. No `@ts-ignore` or `any` without explicit justification.

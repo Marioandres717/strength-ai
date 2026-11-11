@@ -36,6 +36,24 @@ export function WorkoutSyncStatus() {
     }
   }, [])
   return (
+    <WorkoutSyncMessage
+      status={status}
+      updateWaiting={updateWaiting}
+      onRetry={() => void retryWorkoutSync()}
+    />
+  )
+}
+
+export function WorkoutSyncMessage({
+  status,
+  updateWaiting,
+  onRetry,
+}: {
+  status: string
+  updateWaiting: boolean
+  onRetry: () => void
+}) {
+  return (
     <div
       className="text-muted mx-auto flex max-w-md items-center justify-between gap-3 px-5 py-2 text-xs"
       role="status"
@@ -49,7 +67,7 @@ export function WorkoutSyncStatus() {
       <button
         type="button"
         className="min-h-11 shrink-0 underline"
-        onClick={() => void retryWorkoutSync()}
+        onClick={onRetry}
       >
         Retry sync
       </button>
